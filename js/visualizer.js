@@ -1,15 +1,18 @@
-function Visualizer(canvasId, imagesSrc, metricsId, imageControlsId) {
+function Visualizer(canvasId, imagesSrc, metricsId, imageControlsId, visualizeAreasId) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
+
     this.imagesSrc = imagesSrc
     this.metrics = document.getElementById(metricsId)
-
     this.controls = document.getElementById(imageControlsId)
+    this.visualizeAreasBox = document.getElementById(visualizeAreasId)
+
     this.InitControls()
     this.Reset()
 
     this.imageIndex = 0
     this.image = this.LoadImage()
+    this.bboxes = []
 }
 
 Visualizer.prototype.LoadImage = function() {
@@ -35,6 +38,10 @@ Visualizer.prototype.InitControls = function() {
     }
 
     this.controls.addEventListener('change', () => this.ChangeImage(this.controls.value))
+
+    this.visualizeLoss = this.visualizeAreasBox.value
+    this.visualizeAreasBox.parentNode.style.display = 'none'
+    this.visualizeAreasBox.addEventListener('change', () => { this.visualizeLoss = this.visualizeAreasBox.value; this.needUpdate = true })
 }
 
 Visualizer.prototype.InitEvents = function() {
@@ -54,7 +61,6 @@ Visualizer.prototype.ChangeImage = function(src) {
 }
 
 Visualizer.prototype.Reset = function() {
-    this.bboxes = []
     this.activeBox = null
 
     this.isPressed = false
@@ -89,6 +95,16 @@ Visualizer.prototype.RemoveActiveBbox = function() {
     this.needUpdate = true
 }
 
+Visualizer.prototype.AddActiveBbox = function() {
+    this.needUpdate = true
+
+    if (this.activeBox.IsCreated())
+        return
+
+    this.activeBox.Create()
+    this.bboxes.push(this.activeBox)
+}
+
 Visualizer.prototype.MakeAction = function(dx, dy) {
     if (this.action == ACTION_RESIZE) {
         this.activeBox.Resize(this.resizeDir, dx, dy)
@@ -108,16 +124,6 @@ Visualizer.prototype.GetBoxesByColor = function(color) {
             bboxes.push(bbox)
 
     return bboxes
-}
-
-Visualizer.prototype.EvaluateIntersectionOverUnion = function(threshold) {
-    for (let bbox of this.bboxes)
-        bbox.text = ''
-
-    let real = this.GetBoxesByColor(BBOX_REAL_COLOR)
-    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)
-    let iou = new IntersectionOverUnionLoss(real, pred, threshold)
-    let loss = iou.Evaluate()
 }
 
 Visualizer.prototype.RestoreBboxes = function(data) {

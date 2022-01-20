@@ -101,7 +101,7 @@ BoundingBox.prototype.GetResizeDir = function(x, y) {
     return dirs.join('')
 }
 
-BoundingBox.prototype.Draw = function(ctx, isActive = false) {
+BoundingBox.prototype.Draw = function(ctx, isActive = false, onlyBorder = false) {
     let bbox = this.GetNormalParams()
     let width = Math.abs(this.x2 - this.x1)
     let height = Math.abs(this.y2 - this.y1)
@@ -110,13 +110,17 @@ BoundingBox.prototype.Draw = function(ctx, isActive = false) {
     ctx.strokeStyle = `hsl(${this.color}, 80%, 60%)`
     ctx.lineWidth = 2
 
-    if (!isActive) {
+    if (!isActive && !onlyBorder) {
         ctx.setLineDash([3, 3])
     }
 
     ctx.beginPath()
     ctx.rect(bbox.x1, bbox.y1, width, height)
-    ctx.fill()
+
+    if (!onlyBorder) {
+        ctx.fill()
+    }
+
     ctx.stroke()
     
     ctx.setLineDash([])

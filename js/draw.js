@@ -16,7 +16,7 @@ Visualizer.prototype.UpdateCursor = function(bbox, x, y) {
 Visualizer.prototype.DrawBboxes = function() {
     for (let bbox of this.bboxes) {
         if (bbox != this.activeBox) {
-            bbox.Draw(this.ctx)
+            bbox.Draw(this.ctx, false, this.visualizeLoss != 'none')
         }
 
         if (bbox.IsMouseHover(this.currPoint.x, this.currPoint.y)) {
@@ -69,30 +69,97 @@ Visualizer.prototype.DrawLoss = function() {
     let weighted_bwiou = real[0].WeightedBWIoU(pred[0], this.ctx)
 
     this.metrics.innerHTML += '<i>Функции потерь:</i><br>'
-    this.metrics.innerHTML += '<b>IoU</b>: ' + this.Round(iou) + '<br>'
-    this.metrics.innerHTML += '<b>PIoU</b>: ' + this.Round(piou) + '<br>'
-    this.metrics.innerHTML += '<b>BWIoU</b>: ' + this.Round(bwiou) + '<br>'
-    this.metrics.innerHTML += '<b>BWIoU<sub>weighted</sub></b>: ' + this.Round(weighted_bwiou) + '<br>'
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou)}"></span> <b>IoU</b>: ${this.Round(iou)}<br>`
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(piou)}"></span> <b>PIoU</b>: ${this.Round(piou)}<br>`
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(bwiou)}"></span> <b>BWIoU</b>: ${this.Round(bwiou)}<br>`
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(weighted_bwiou)}"></span> <b>BWIoU<sub>weighted</sub></b>: ${this.Round(weighted_bwiou)}<br>`
     this.metrics.innerHTML += '<hr>'
 
     this.metrics.innerHTML += '<i>Перемноженные с IoU функции потерь:</i><br>'
-    this.metrics.innerHTML += 'IOU×PIoU: ' + this.Round(iou * piou) + '<br>'
-    this.metrics.innerHTML += 'IOU×BWIoU: ' + this.Round(iou * bwiou) + '<br>'
-    this.metrics.innerHTML += 'IOU×BWIoU<sub>weighted</sub>: ' + this.Round(iou * weighted_bwiou) + '<br>'
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou * piou)}"></span> IoU×PIoU: ${this.Round(iou * piou)}<br>`
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou * bwiou)}"></span> IoU×BWIoU: ${this.Round(iou * bwiou)}<br>`
+    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou * weighted_bwiou)}"></span> IoU×BWIoU<sub>weighted</sub>: ${this.Round(iou * weighted_bwiou)}<br>`
+}
+
+Visualizer.prototype.Map = function(x, in_min, in_max, out_min, out_max) {
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+}
+
+Visualizer.prototype.LossToColor = function(loss) {
+    let color
+
+    if (loss >= 0.95)
+        color = this.Map(loss, 0.95, 1, 110, 120)
+    else if (loss >= 0.8)
+        color = this.Map(loss, 0.8, 0.95, 80, 110)
+    else if (loss >= 0.5)
+        color = this.Map(loss, 0.5, 0.8, 60, 80)
+    else
+        color = this.Map(loss, 0, 0.5, 0, 60)
+
+    return `hsla(${color}, 80%, 50%, 70%)`
+}
+
+Visualizer.prototype.VisualizeAreas = function() {
+    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
+    let real = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
+    let int = pred.Intersection(real)
+
+    if (int == null)
+        return
+
+    let loss = 0
+
+    if (this.visualizeLoss == 'iou') {
+        loss = real.IoU(pred)
+    }
+    else if (this.visualizeLoss == 'piou') {
+        loss = real.PIoU(pred, this.ctx)
+    }
+    else if (this.visualizeLoss == 'bwiou') {
+        loss = real.BWIoU(pred, this.ctx)
+    }
+    else if (this.visualizeLoss == 'weighted-bwiou') {
+        loss = real.WeightedBWIoU(pred, this.ctx)
+    }
+    else if (this.visualizeLoss == 'iou×piou') {
+        loss = real.PIoU(pred, this.ctx) * real.IoU(pred)
+    }
+    else if (this.visualizeLoss == 'iou×bwiou') {
+        loss = real.BWIoU(pred, this.ctx) * real.IoU(pred)
+    }
+    else if (this.visualizeLoss == 'iou×weighted-bwiou') {
+        loss = real.WeightedBWIoU(pred, this.ctx) * real.IoU(pred)
+    }
+
+    this.ctx.fillStyle = this.LossToColor(loss)
+    this.ctx.fillRect(int.x1, int.y1, int.x2 - int.x1, int.y2 - int.y1)
+
+    this.ctx.fillStyle = `#000`
+    this.ctx.textAlign = 'center'
+    this.ctx.textBaseline = 'middle'
+    this.ctx.font = '16px Arial'
+    this.ctx.fillText(`${this.visualizeLoss} = ${this.Round(loss)}`, (int.x1 + int.x2) / 2, (int.y1 + int.y2) / 2)
 }
 
 Visualizer.prototype.Draw = function() {
     this.Clear()
     this.ctx.drawImage(this.image, 0, 0, this.imageWidth, this.imageHeight)
 
-    if (this.needUpdate) {       
+    if (this.needUpdate) {
         this.needUpdate = false
         this.DrawLoss()
+
     }
+
+    if (this.CanVisualizeAreas() && this.visualizeLoss != 'none')
+        this.VisualizeAreas()
 
     this.DrawBboxes()
 
     if (this.activeBox != null) {
-        this.activeBox.Draw(this.ctx, true)
+        this.activeBox.Draw(this.ctx, true, this.visualizeLoss != 'none')
     }
+
+    this.visualizeAreasBox.parentNode.style.display = this.CanVisualizeAreas() ? '' : 'none'
 }

@@ -49,6 +49,10 @@ Visualizer.prototype.CanAddBbox = function(color) {
     return this.bboxes[0].color != color
 }
 
+Visualizer.prototype.CanVisualizeAreas = function() {
+    return this.bboxes.length == 2 && this.bboxes[0].color != this.bboxes[1].color
+}
+
 Visualizer.prototype.MouseDown = function(e) {
     let x = e.offsetX
     let y = e.offsetY
@@ -105,12 +109,7 @@ Visualizer.prototype.MouseUp = function(e) {
         return
     }
 
-    this.needUpdate = true
-
-    if (!this.activeBox.IsCreated()) {
-        this.activeBox.Create()
-        this.bboxes.push(this.activeBox)
-    }
+    this.AddActiveBbox()
 }
 
 Visualizer.prototype.WindowResize = function() {
