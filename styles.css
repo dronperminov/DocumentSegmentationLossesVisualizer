@@ -10,13 +10,12 @@
 }
 
 .visualizer-metric {
-    width: 50%;
+    width: 100%;
     font-size: 20px;
     padding: 0 5px;
 }
 
 .visualizer-image {
-    width: 50%;
     max-width: 50vw;
     overflow: auto;
     border: 1px solid #000;
