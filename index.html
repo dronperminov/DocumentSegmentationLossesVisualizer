@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Визуализатор различных функций ошибок для задачи обнаружения объектов на изображении</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body oncontextmenu="return false;">
+    <div class="visualizer">
+        <div class="visualizer-image">
+            <canvas id="canvas">
+        </div>
+
+        <div class="visualizer-metric">
+            <div class="controls">
+                <select id="image-controls"></select>
+            </div>
+            <div id="metrics"></div>
+        </div>
+    </div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/bbox.js"></script>
+    <script src="js/visualizer.js"></script>
+    <script src="js/events.js"></script>
+    <script src="js/draw.js"></script>
+
+    <script>
+        let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im54.jpg', 'images/im94.jpg']
+        let visualizer = new Visualizer('canvas', images, 'metrics', 'image-controls')
+
+        setInterval(() => visualizer.Draw(), 10)
+    </script>
+</body>
+</html>
