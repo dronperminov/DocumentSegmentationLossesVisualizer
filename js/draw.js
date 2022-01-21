@@ -38,7 +38,7 @@ Visualizer.prototype.DrawLoss = function() {
     if (real.length != 1 || pred.length != 1)
         return
 
-    let info = real[0].GetInfo(pred[0], this.ctx)
+    let info = real[0].GetInfo(pred[0], this.ctx, this.threshold)
 
     if (info != null) {
         this.metrics.innerHTML += `<i>Площади выделенных bounding box'ов:</i><br>`
@@ -64,9 +64,9 @@ Visualizer.prototype.DrawLoss = function() {
     }
 
     let iou = real[0].IoU(pred[0])
-    let piou = real[0].PIoU(pred[0], this.ctx)
-    let bwiou = real[0].BWIoU(pred[0], this.ctx)
-    let weighted_bwiou = real[0].WeightedBWIoU(pred[0], this.ctx)
+    let piou = real[0].PIoU(pred[0], this.ctx, this.threshold)
+    let bwiou = real[0].BWIoU(pred[0], this.ctx, this.threshold)
+    let weighted_bwiou = real[0].WeightedBWIoU(pred[0], this.ctx, this.threshold)
 
     this.metrics.innerHTML += '<i>Функции потерь:</i><br>'
     this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou)}"></span> <b>IoU</b>: ${this.Round(iou)}<br>`
@@ -88,12 +88,10 @@ Visualizer.prototype.Map = function(x, in_min, in_max, out_min, out_max) {
 Visualizer.prototype.LossToColor = function(loss) {
     let color
 
-    if (loss >= 0.95)
-        color = this.Map(loss, 0.95, 1, 110, 120)
-    else if (loss >= 0.8)
-        color = this.Map(loss, 0.8, 0.95, 80, 110)
+    if (loss >= 0.9)
+        color = this.Map(loss, 0.9, 1, 90, 120)
     else if (loss >= 0.5)
-        color = this.Map(loss, 0.5, 0.8, 60, 80)
+        color = this.Map(loss, 0.5, 0.9, 60, 90)
     else
         color = this.Map(loss, 0, 0.5, 0, 60)
 
@@ -114,22 +112,22 @@ Visualizer.prototype.VisualizeAreas = function() {
         loss = real.IoU(pred)
     }
     else if (this.visualizeLoss == 'piou') {
-        loss = real.PIoU(pred, this.ctx)
+        loss = real.PIoU(pred, this.ctx, this.threshold)
     }
     else if (this.visualizeLoss == 'bwiou') {
-        loss = real.BWIoU(pred, this.ctx)
+        loss = real.BWIoU(pred, this.ctx, this.threshold)
     }
     else if (this.visualizeLoss == 'weighted-bwiou') {
-        loss = real.WeightedBWIoU(pred, this.ctx)
+        loss = real.WeightedBWIoU(pred, this.ctx, this.threshold)
     }
     else if (this.visualizeLoss == 'iou×piou') {
-        loss = real.PIoU(pred, this.ctx) * real.IoU(pred)
+        loss = real.PIoU(pred, this.ctx, this.threshold) * real.IoU(pred)
     }
     else if (this.visualizeLoss == 'iou×bwiou') {
-        loss = real.BWIoU(pred, this.ctx) * real.IoU(pred)
+        loss = real.BWIoU(pred, this.ctx, this.threshold) * real.IoU(pred)
     }
     else if (this.visualizeLoss == 'iou×weighted-bwiou') {
-        loss = real.WeightedBWIoU(pred, this.ctx) * real.IoU(pred)
+        loss = real.WeightedBWIoU(pred, this.ctx, this.threshold) * real.IoU(pred)
     }
 
     this.ctx.fillStyle = this.LossToColor(loss)

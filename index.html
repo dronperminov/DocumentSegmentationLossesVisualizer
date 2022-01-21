@@ -14,20 +14,17 @@
         <div class="visualizer-metric">
             <div class="controls">
                 <label>Изображение: <select id="image-controls"></select></label><br>
+                <label>Порог тёмных пикселей: <input type="number" step="1" min="1" max="255" value="128" id="threshold-controls"></label><br>
                 <label>Рисовать области для:
                     <select id="visualize-loss-areas">
-                        <option value='none'>не визуализировать</option>
-                        <option value='iou' selected>IoU</option>
+                        <option value='none' selected>не визуализировать</option>
+                        <option value='iou'>IoU</option>
                         <option value='piou'>PIoU</option>
                         <option value='bwiou'>BWIoU</option>
                         <option value='weighted-bwiou'>weighted BWIoU</option>
                         <option value='iou×piou'>IoU × PIoU</option>
                         <option value='iou×bwiou'>IoU × BWIoU</option>
-                        <option value='iou×weighted-bwiou'>IoU × weighted BWIoU</option>                        <option value='none'>не визуализировать</option>
-                        <option value='iou' selected>IoU</option>
-                        <option value='piou'>PIoU</option>
-                        <option value='bwiou'>BWIoU</option>
-                        <option value='weighted-bwiou'>weighted BWIoU</option>
+                        <option value='iou×weighted-bwiou'>IoU × weighted BWIoU</option>
                     </select>
                 </label>
                 <hr>
@@ -44,7 +41,7 @@
 
     <script>
         let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im23.jpg', 'images/im24.jpg', 'images/im54.jpg', 'images/im94.jpg']
-        let visualizer = new Visualizer('canvas', images, 'metrics', 'image-controls', 'visualize-loss-areas')
+        let visualizer = new Visualizer('canvas', images, 'metrics', 'image-controls', 'threshold-controls', 'visualize-loss-areas')
 
         setInterval(() => visualizer.Draw(), 10)
     </script>

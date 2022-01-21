@@ -1,10 +1,11 @@
-function Visualizer(canvasId, imagesSrc, metricsId, imageControlsId, visualizeAreasId) {
+function Visualizer(canvasId, imagesSrc, metricsId, imageControlsId, thresholdControlsId, visualizeAreasId) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
 
     this.imagesSrc = imagesSrc
     this.metrics = document.getElementById(metricsId)
     this.controls = document.getElementById(imageControlsId)
+    this.thresholdBox = document.getElementById(thresholdControlsId)
     this.visualizeAreasBox = document.getElementById(visualizeAreasId)
 
     this.InitControls()
@@ -42,6 +43,9 @@ Visualizer.prototype.InitControls = function() {
     this.visualizeLoss = this.visualizeAreasBox.value
     this.visualizeAreasBox.parentNode.style.display = 'none'
     this.visualizeAreasBox.addEventListener('change', () => { this.visualizeLoss = this.visualizeAreasBox.value; this.needUpdate = true })
+
+    this.threshold = +this.thresholdBox.value
+    this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; this.needUpdate = true })
 }
 
 Visualizer.prototype.InitEvents = function() {
