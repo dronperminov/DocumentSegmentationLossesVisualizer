@@ -38,6 +38,11 @@ function Min(arg1, arg2) {
     this.value = null
 }
 
+function Atan(arg) {
+    this.arg = arg
+    this.value = null
+}
+
 Number.prototype.Forward = function() {
     this.grad = 0
     return this.value
@@ -167,4 +172,17 @@ Min.prototype.Forward = function() {
 Min.prototype.Backward = function(value) {
     this.arg1.Backward(this.grad1 * value)
     this.arg2.Backward(this.grad2 * value)
+}
+
+Atan.prototype.Forward = function() {
+    if (this.value == null) {
+        this.value = Math.atan(this.arg.Forward())
+        this.grad = 1 / (this.value * this.value + 1)
+    }
+
+    return this.value
+}
+
+Atan.prototype.Backward = function(value) {
+    this.arg.Backward(this.grad * value)
 }

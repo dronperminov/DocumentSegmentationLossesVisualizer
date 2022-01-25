@@ -15,18 +15,21 @@
             <div class="controls">
                 <label>Изображение: <select id="image-controls"></select></label><br>
                 <label>Порог тёмных пикселей: <input type="number" step="1" min="1" max="255" value="128" id="threshold-controls"></label><br>
+                <label><input type="checkbox" id="diou-box">DIoU</label>
+                <label><input type="checkbox" id="ciou-box">CIoU</label><br>
                 <label>Рисовать области для:
                     <select id="visualize-loss-areas">
                         <option value='none' selected>не визуализировать</option>
-                        <option value='iou'>IoU</option>
-                        <option value='piou'>PIoU</option>
-                        <option value='bwiou'>BWIoU</option>
-                        <option value='weighted-bwiou'>weighted BWIoU</option>
-                        <option value='iou×piou'>IoU × PIoU</option>
-                        <option value='iou×bwiou'>IoU × BWIoU</option>
-                        <option value='iou×weighted-bwiou'>IoU × weighted BWIoU</option>
+                        <option value='IoU'>IoU</option>
+                        <option value='PIoU'>PIoU</option>
+                        <option value='BWIoU'>BWIoU</option>
+                        <option value='Weighted BWIoU'>Weighted BWIoU</option>
+                        <option value='PIoU (champion)'>PIoU (champion)</option>
+                        <option value='BWIoU (champion)'>BWIoU (champion)</option>
+                        <option value='Weighted BWIoU (champion)'>Weighted BWIoU (champion)</option>
                     </select>
-                </label>
+                </label><br>
+                <button id="optimize-btn">Запустить</button>
                 <hr>
             </div>
             <div id="metrics"></div>
@@ -38,10 +41,11 @@
     <script src="js/visualizer.js"></script>
     <script src="js/events.js"></script>
     <script src="js/draw.js"></script>
+    <script src="js/graph.js"></script>
 
     <script>
         let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im23.jpg', 'images/im24.jpg', 'images/im54.jpg', 'images/im94.jpg']
-        let visualizer = new Visualizer('canvas', images, 'metrics', 'image-controls', 'threshold-controls', 'visualize-loss-areas')
+        let visualizer = new Visualizer('canvas', images)
 
         setInterval(() => visualizer.Draw(), 10)
     </script>

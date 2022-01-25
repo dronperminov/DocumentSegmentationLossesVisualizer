@@ -38,47 +38,81 @@ Visualizer.prototype.DrawLoss = function() {
     if (real.length != 1 || pred.length != 1)
         return
 
-    let info = real[0].GetInfo(pred[0], this.ctx, this.threshold)
+    real = real[0]
+    pred = pred[0]
+    let info = real.GetInfo(pred, this.ctx, this.threshold)
 
     if (info != null) {
-        this.metrics.innerHTML += `<i>Площади выделенных bounding box'ов:</i><br>`
-        this.metrics.innerHTML += `<b>S</b><sub>real</sub>: ${info.realArea}<br>`
-        this.metrics.innerHTML += `<b>S</b><sub>pred</sub>: ${info.predArea}<br>`
-        this.metrics.innerHTML += `<b>S</b><sub>∩</sub>: ${info.intersectionArea}<br>`
-        this.metrics.innerHTML += `<b>S</b><sub>∪</sub>: ${info.unionArea}<br>`
-        this.metrics.innerHTML += '<hr>'
+        let int = real.Intersection(pred)
 
-        this.metrics.innerHTML += `<i>Значения тёмных пикселей, нормализованные к своим площадям</i><br>`
-        this.metrics.innerHTML += `<b>Black</b><sub>real</sub>: ${this.Round(info.realBlackCount / info.realArea)} (${info.realBlackCount})<br>`
-        this.metrics.innerHTML += `<b>Black</b><sub>pred</sub>: ${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})<br>`
-        this.metrics.innerHTML += `<b>Black</b><sub>∩</sub>: ${this.Round(info.intersectionBlackCount / info.intersectionArea)} (${info.intersectionBlackCount})<br>`
-        this.metrics.innerHTML += `<b>Black</b><sub>∪</sub>: ${this.Round(info.unionBlackCount / info.unionArea)} (${info.unionBlackCount})<br>`
-        this.metrics.innerHTML += '<hr>'
-
-        this.metrics.innerHTML += `<i>Значения светлых пикселей, нормализованные к своим площадям</i><br>`
-        this.metrics.innerHTML += `<b>White</b><sub>real</sub>: ${this.Round(info.realWhiteCount / info.realArea)} (${info.realWhiteCount})<br>`
-        this.metrics.innerHTML += `<b>White</b><sub>pred</sub>: ${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})<br>`
-        this.metrics.innerHTML += `<b>White</b><sub>∩</sub>: ${this.Round(info.intersectionWhiteCount / info.intersectionArea)} (${info.intersectionWhiteCount})<br>`
-        this.metrics.innerHTML += `<b>White</b><sub>∪</sub>: ${this.Round(info.unionWhiteCount / info.unionArea)} (${info.unionWhiteCount})<br>`
-        this.metrics.innerHTML += '<hr>'
+        this.metrics.innerHTML +=
+        `<table>\
+            <tr><th>Bbox</th><th>Coord</th><th>Area</th><th>Black (■)</th><th>White (□)</th></tr>
+            <tr>
+                <td style="color: hsl(120, 70%, 50%)"><b>real</b></td>
+                <td>${real.ToString()}</td>
+                <td>${info.realArea}</td>
+                <td>${this.Round(info.realBlackCount / info.realArea)} (${info.realBlackCount})</td>
+                <td>${this.Round(info.realWhiteCount / info.realArea)} (${info.realWhiteCount})</td>
+            </tr>
+            <tr>
+                <td style="color: hsl(0, 70%, 50%)"><b>pred</b></td>
+                <td>${pred.ToString()}</td>
+                <td>${info.predArea}</td>
+                <td>${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})</td>
+                <td>${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})</td>
+            </tr>
+            <tr>
+                <td><b>∩</b></td>
+                <td>${int.ToString()}</td>
+                <td>${info.intersectionArea}</td>
+                <td>${this.Round(info.intersectionBlackCount / info.intersectionArea)} (${info.intersectionBlackCount})</td>
+                <td>${this.Round(info.intersectionWhiteCount / info.intersectionArea)} (${info.intersectionWhiteCount})</td>
+            </tr>
+            <tr>
+                <td><b>∪</b></td>
+                <td></td>
+                <td>${info.unionArea}</td>
+                <td>${this.Round(info.unionBlackCount / info.unionArea)} (${info.unionBlackCount})</td>
+                <td>${this.Round(info.unionWhiteCount / info.unionArea)} (${info.unionWhiteCount})</td>
+            </tr>
+        </table><hr>`
     }
 
-    let iou = real[0].IoU(pred[0])
-    let piou = real[0].PIoU(pred[0], this.ctx, this.threshold)
-    let bwiou = real[0].BWIoU(pred[0], this.ctx, this.threshold)
-    let weighted_bwiou = real[0].WeightedBWIoU(pred[0], this.ctx, this.threshold)
+    let losses = this.GetLosses(real, pred)
 
     this.metrics.innerHTML += '<i>Функции потерь:</i><br>'
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou)}"></span> <b>IoU</b>: ${this.Round(iou)}<br>`
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(piou)}"></span> <b>PIoU</b>: ${this.Round(piou)}<br>`
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(bwiou)}"></span> <b>BWIoU</b>: ${this.Round(bwiou)}<br>`
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(weighted_bwiou)}"></span> <b>BWIoU<sub>weighted</sub></b>: ${this.Round(weighted_bwiou)}<br>`
-    this.metrics.innerHTML += '<hr>'
+    this.metrics.innerHTML +=
+    `<table>
+        <tr>
+            <th>Loss</th>
+            <th>IoU</th>
+            <th>PIoU</th>
+            <th>BWIoU</th>
+            <th>BWIoU<sub>weighted</sub></th>
+        </tr>
+        <tr>
+            <td>L</td>
+            <td rowspan="3"><span class="box" style="background: ${this.LossToColor(losses.iou)}"></span> ${this.Round(losses.iou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.piou)}"></span> ${this.Round(losses.piou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.bwiou)}"></span> ${this.Round(losses.bwiou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou)}"></span> ${this.Round(losses.weighted_bwiou)}</td>
+        </tr>
 
-    this.metrics.innerHTML += '<i>Перемноженные с IoU функции потерь:</i><br>'
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou * piou)}"></span> IoU×PIoU: ${this.Round(iou * piou)}<br>`
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou * bwiou)}"></span> IoU×BWIoU: ${this.Round(iou * bwiou)}<br>`
-    this.metrics.innerHTML += `<span class="box" style="background: ${this.LossToColor(iou * weighted_bwiou)}"></span> IoU×BWIoU<sub>weighted</sub>: ${this.Round(iou * weighted_bwiou)}<br>`
+        <tr>
+            <td>L × IoU</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.piou_iou)}"></span> ${this.Round(losses.piou_iou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_iou)}"></span> ${this.Round(losses.bwiou_iou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_iou)}"></span> ${this.Round(losses.weighted_bwiou_iou)}</td>
+        </tr>
+
+        <tr>
+            <td>(L + 1 - IoU) × IoU</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.piou_champion)}"></span> ${this.Round(losses.piou_champion)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_champion)}"></span> ${this.Round(losses.bwiou_champion)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_champion)}"></span> ${this.Round(losses.weighted_bwiou_champion)}</td>
+        </tr>
+    </table>`
 }
 
 Visualizer.prototype.Map = function(x, in_min, in_max, out_min, out_max) {
@@ -99,36 +133,14 @@ Visualizer.prototype.LossToColor = function(loss) {
 }
 
 Visualizer.prototype.VisualizeAreas = function() {
-    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
     let real = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
+    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
     let int = pred.Intersection(real)
 
     if (int == null)
         return
 
-    let loss = 0
-
-    if (this.visualizeLoss == 'iou') {
-        loss = real.IoU(pred)
-    }
-    else if (this.visualizeLoss == 'piou') {
-        loss = real.PIoU(pred, this.ctx, this.threshold)
-    }
-    else if (this.visualizeLoss == 'bwiou') {
-        loss = real.BWIoU(pred, this.ctx, this.threshold)
-    }
-    else if (this.visualizeLoss == 'weighted-bwiou') {
-        loss = real.WeightedBWIoU(pred, this.ctx, this.threshold)
-    }
-    else if (this.visualizeLoss == 'iou×piou') {
-        loss = real.PIoU(pred, this.ctx, this.threshold) * real.IoU(pred)
-    }
-    else if (this.visualizeLoss == 'iou×bwiou') {
-        loss = real.BWIoU(pred, this.ctx, this.threshold) * real.IoU(pred)
-    }
-    else if (this.visualizeLoss == 'iou×weighted-bwiou') {
-        loss = real.WeightedBWIoU(pred, this.ctx, this.threshold) * real.IoU(pred)
-    }
+    let loss = this.GetLossByName(real, pred, this.visualizeLoss)
 
     this.ctx.fillStyle = this.LossToColor(loss)
     this.ctx.fillRect(int.x1, int.y1, int.x2 - int.x1, int.y2 - int.y1)

@@ -101,6 +101,10 @@ BoundingBox.prototype.GetResizeDir = function(x, y) {
     return dirs.join('')
 }
 
+BoundingBox.prototype.ToString = function() {
+    return `${this.x1}, ${this.y1}, ${this.x2}, ${this.y2}`
+}
+
 BoundingBox.prototype.Draw = function(ctx, isActive = false, onlyBorder = false) {
     let bbox = this.GetNormalParams()
     let width = Math.abs(this.x2 - this.x1)
@@ -207,7 +211,7 @@ BoundingBox.prototype.GetInfo = function(bbox, ctx, threshold) {
     }
 }
 
-BoundingBox.prototype.IoU = function(bbox) {
+BoundingBox.prototype.IoU = function(bbox, DIoU = false, CIoU = false) {
     let intersection = this.Intersection(bbox)
 
     let area1 = this.GetArea()
@@ -216,6 +220,29 @@ BoundingBox.prototype.IoU = function(bbox) {
     let unionArea = area1 + area2 - intersectionArea
 
     let iou = intersectionArea / unionArea
+
+    if (DIoU || CIoU) {
+        let cw = Math.max(this.x2, bbox.x2) - Math.min(this.x1, bbox.x1)
+        let ch = Math.max(this.y2, bbox.y2) - Math.min(this.y1, bbox.y1)
+        let c2 = cw*cw + ch*ch
+        let rho2 = (Math.pow(this.x1 + this.x2 - bbox.x1 - bbox.x2, 2) + Math.pow(this.y1 + this.y2 - bbox.y1 - bbox.y2, 2)) / 4
+
+        if (CIoU) {
+            let w1 = Math.abs(this.x2 - this.x1)
+            let h1 = Math.abs(this.y2 - this.y1)
+
+            let w2 = Math.abs(bbox.x2 - bbox.x1)
+            let h2 = Math.abs(bbox.y2 - bbox.y1)
+
+            let v = 4 / (Math.PI * Math.PI) * Math.pow(Math.atan(w2 / h2) - Math.atan(w1 / h1), 2)
+            let alpha = v / (v - iou + 1 + 1e-8)
+
+            return iou - (rho2 / c2 + v * alpha)
+        }
+        else {
+            return iou - rho2 / c2
+        }
+    }
 
     return iou
 }

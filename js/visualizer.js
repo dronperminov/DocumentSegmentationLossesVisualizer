@@ -1,12 +1,15 @@
-function Visualizer(canvasId, imagesSrc, metricsId, imageControlsId, thresholdControlsId, visualizeAreasId) {
+function Visualizer(canvasId, imagesSrc) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
 
     this.imagesSrc = imagesSrc
-    this.metrics = document.getElementById(metricsId)
-    this.controls = document.getElementById(imageControlsId)
-    this.thresholdBox = document.getElementById(thresholdControlsId)
-    this.visualizeAreasBox = document.getElementById(visualizeAreasId)
+    this.metrics = document.getElementById('metrics')
+    this.controls = document.getElementById('image-controls')
+    this.thresholdBox = document.getElementById('threshold-controls')
+    this.diouBox = document.getElementById('diou-box')
+    this.ciouBox = document.getElementById('ciou-box')
+    this.visualizeAreasBox = document.getElementById('visualize-loss-areas')
+    this.optimizeBtn = document.getElementById('optimize-btn')
 
     this.InitControls()
     this.Reset()
@@ -42,10 +45,22 @@ Visualizer.prototype.InitControls = function() {
 
     this.visualizeLoss = this.visualizeAreasBox.value
     this.visualizeAreasBox.parentNode.style.display = 'none'
-    this.visualizeAreasBox.addEventListener('change', () => { this.visualizeLoss = this.visualizeAreasBox.value; this.needUpdate = true })
+    this.visualizeAreasBox.addEventListener('change', () => this.ChangeVisualizeLoss())
 
     this.threshold = +this.thresholdBox.value
     this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; this.needUpdate = true })
+
+    this.diouBox.addEventListener('change', () => { this.needUpdate = true })
+    this.ciouBox.addEventListener('change', () => { this.needUpdate = true })
+
+    this.optimizeBtn.addEventListener('click', () => this.Optimize())
+    this.ChangeVisualizeLoss()
+}
+
+Visualizer.prototype.ChangeVisualizeLoss = function() {
+    this.visualizeLoss = this.visualizeAreasBox.value
+    this.optimizeBtn.style.display = this.visualizeLoss == 'none' ? 'none' : ''
+    this.needUpdate = true
 }
 
 Visualizer.prototype.InitEvents = function() {
@@ -140,10 +155,61 @@ Visualizer.prototype.RestoreBboxes = function(data) {
     }
 }
 
-Visualizer.prototype.EvaluateLoss = function(isDIoU) {
-    this.real = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
-    this.pred = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
+Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
+    let iou_clear = real.IoU(pred, false, false)
+    let iou = real.IoU(pred, this.diouBox.checked, this.ciouBox.checked)
+    let piou = real.PIoU(pred, this.ctx, this.threshold)
+    let bwiou = real.BWIoU(pred, this.ctx, this.threshold)
+    let weighted_bwiou = real.WeightedBWIoU(pred, this.ctx, this.threshold)
 
+    if (isScale)
+        iou = 1
+
+    let piou_iou = iou * piou
+    let bwiou_iou = iou * bwiou
+    let weighted_bwiou_iou = iou * weighted_bwiou
+
+    let piou_champion = iou * (piou + 1 - iou_clear)
+    let bwiou_champion = iou * (bwiou + 1 - iou_clear)
+    let weighted_bwiou_champion = iou * (weighted_bwiou + 1 - iou_clear)
+
+    return {
+        iou, iou_clear,
+        piou, bwiou, weighted_bwiou,
+        piou_iou, bwiou_iou, weighted_bwiou_iou,
+        piou_champion, bwiou_champion, weighted_bwiou_champion
+    }
+}
+
+Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false) {
+    let losses = this.GetLosses(real, pred, isScale)
+
+    if (name == 'IoU')
+        return losses.iou
+
+    if (name == 'PIoU')
+        return losses.piou
+
+    if (name == 'BWIoU')
+        return losses.bwiou
+
+    if (name == 'Weighted BWIoU')
+        return losses.weighted_bwiou
+
+    if (name == 'PIoU (champion)')
+        return losses.piou_champion
+
+    if (name == 'BWIoU (champion)')
+        return losses.bwiou_champion
+
+    if (name == 'Weighted BWIoU (champion)')
+        return losses.weighted_bwiou_champion
+
+    throw "unknown loss '" + name + '"'
+}
+
+
+Visualizer.prototype.EvaluateLoss = function() {
     // real nodes
     let real_x1 = new Number(this.real.x1)
     let real_x2 = new Number(this.real.x2)
@@ -180,7 +246,7 @@ Visualizer.prototype.EvaluateLoss = function(isDIoU) {
     let union_area = new Sub(new Add(real_area, pred_area), int_area)
     let iou = new Div(int_area, union_area)
 
-    if (isDIoU) {
+    if (this.diouBox.checked || this.ciouBox.checked) {
         let cw = new Sub(new Max(pred_x2, real_x2), new Min(pred_x1, real_x1))
         let ch = new Sub(new Max(pred_y2, real_y2), new Min(pred_y1, real_y1))
         let c2 = new Add(new Mult(cw, cw), new Mult(ch, ch))
@@ -189,11 +255,25 @@ Visualizer.prototype.EvaluateLoss = function(isDIoU) {
         let arg2 = new Sub(new Add(real_y1, real_y2), new Add(pred_y1, pred_y2))
 
         let rho2 = new Div(new Add(new Mult(arg1, arg1), new Mult(arg2, arg2)), new Number(4))
-        iou = new Sub(iou, new Div(rho2, c2))
+
+        if (this.ciouBox.checked) {
+            let a1 = new Atan(new Div(real_width, real_height))
+            let a2 = new Atan(new Div(pred_width, pred_height))
+            let a = new Sub(a2, a1)
+
+            let v = new Mult(new Number(4 / (Math.PI * Math.PI)), new Mult(a, a))
+            let alpha = new Div(v, new Add(new Sub(v, iou), new Number(1 + 1e-8)))
+
+            iou = new Sub(iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
+        }
+        else {
+            iou = new Sub(iou, new Div(rho2, c2))
+        }
     }
 
     let L = iou.Forward()
-    iou.Backward(1)
+    let scale = this.GetLossByName(this.realBox, this.predBox, this.visualizeLoss, true)
+    iou.Backward(scale)
 
     return {
         loss: 1 - L,
@@ -204,8 +284,18 @@ Visualizer.prototype.EvaluateLoss = function(isDIoU) {
     }
 }
 
-Visualizer.prototype.Optimize = function(isDIoU = true, steps = 0, alpha = 50) {
-    let loss = this.EvaluateLoss(isDIoU)
+Visualizer.prototype.Optimize = function(alpha = 0.001) {
+    this.realBox = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
+    this.predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
+
+    this.real = { x1: this.realBox.x1 / this.imageWidth, y1: this.realBox.y1 / this.imageHeight, x2: this.realBox.x2 / this.imageWidth, y2: this.realBox.y2 / this.imageHeight }
+    this.pred = { x1: this.predBox.x1 / this.imageWidth, y1: this.predBox.y1 / this.imageHeight, x2: this.predBox.x2 / this.imageWidth, y2: this.predBox.y2 / this.imageHeight }
+
+    this.OptimizeStep(alpha)
+}
+
+Visualizer.prototype.OptimizeStep = function(alpha, steps = 0) {
+    let loss = this.EvaluateLoss()
 
     if (loss.loss < 0.01)
         return
@@ -213,10 +303,17 @@ Visualizer.prototype.Optimize = function(isDIoU = true, steps = 0, alpha = 50) {
     let scale = 1 + loss.loss
 
     console.log(loss.loss, steps)
+
     this.pred.x1 -= alpha * loss.dx1 * scale
     this.pred.x2 -= alpha * loss.dx2 * scale
     this.pred.y1 -= alpha * loss.dy1 * scale
     this.pred.y2 -= alpha * loss.dy2 * scale
+
+    this.predBox.x1 = Math.round(this.pred.x1 * this.imageWidth)
+    this.predBox.y1 = Math.round(this.pred.y1 * this.imageHeight)
+    this.predBox.x2 = Math.round(this.pred.x2 * this.imageWidth)
+    this.predBox.y2 = Math.round(this.pred.y2 * this.imageHeight)
+
     this.needUpdate = true
-    requestAnimationFrame(() => this.Optimize(isDIoU, steps + 1, alpha))
+    requestAnimationFrame(() => this.OptimizeStep(alpha, steps + 1))
 }
