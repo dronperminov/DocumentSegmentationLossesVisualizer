@@ -49,7 +49,6 @@ Visualizer.prototype.InitControls = function() {
     this.controls.addEventListener('change', () => this.ChangeImage(this.controls.value))
 
     this.visualizeLoss = this.visualizeAreasBox.value
-    this.visualizeAreasBox.parentNode.style.display = 'none'
     this.visualizeAreasBox.addEventListener('change', () => this.ChangeVisualizeLoss())
 
     this.threshold = +this.thresholdBox.value
@@ -291,10 +290,14 @@ Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox, lossN
 }
 
 Visualizer.prototype.Optimize = function(alpha = 0.0005) {
-    let realBox = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
+    let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
     let predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
 
-    let real = realBox.GetNormalizedParams(this.imageWidth, this.imageHeight)
+    let reals = []
+
+    for (let box of realBoxes) {
+        reals.push(box.GetNormalizedParams(this.imageWidth, this.imageHeight))
+    }
 
     let predBoxes = []
     let preds = []
@@ -322,18 +325,35 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
 
     let totalMaxLoss = 0
 
-    this.OptimizeStep(real, preds, realBox, predBoxes, names, lossValues, totalMaxLoss, alpha)
+    this.OptimizeStep(reals, preds, realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha)
 }
 
-Visualizer.prototype.OptimizeStep = function(real, preds, realBox, predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
+Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
+    let imax = 0
+    let iou_max = -Infinity
+
+    for (let i = 0; i < realBoxes.length; i++) {
+        let iou = realBoxes[i].IoU(predBox, true, false)
+
+        if (iou > iou_max) {
+            iou_max = iou
+            imax = i
+        }
+    }
+
+    return imax
+}
+
+Visualizer.prototype.OptimizeStep = function(reals, preds, realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
     let losses = []
     let maxLoss = 0
-    let threshold = 0.015
+    let threshold = 0.014
 
     this.Clear()
 
     for (let i = 0; i < names.length; i++) {
-        losses[i] = this.EvaluateLoss(real, preds[i], realBox, predBoxes[i], names[i])
+        let index = this.GetOptimalRealBox(predBoxes[i], realBoxes)
+        losses[i] = this.EvaluateLoss(reals[index], preds[i], realBoxes[index], predBoxes[i], names[i])
         maxLoss = Math.max(maxLoss, losses[i].loss)
     }
 
@@ -371,5 +391,5 @@ Visualizer.prototype.OptimizeStep = function(real, preds, realBox, predBoxes, na
 
     console.log('')
 
-    requestAnimationFrame(() => this.OptimizeStep(real, preds, realBox, predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
+    requestAnimationFrame(() => this.OptimizeStep(reals, preds, realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
 }

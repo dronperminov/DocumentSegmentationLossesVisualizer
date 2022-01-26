@@ -43,10 +43,10 @@ Visualizer.prototype.KeyDown = function(e) {
 }
 
 Visualizer.prototype.CanAddBbox = function(color) {
-    if (this.bboxes.length != 1)
-        return this.bboxes.length == 0
+    if (color == BBOX_PRED_COLOR)
+        return this.GetBoxesByColor(color).length == 0
 
-    return this.bboxes[0].color != color
+    return true
 }
 
 Visualizer.prototype.CanVisualizeAreas = function() {

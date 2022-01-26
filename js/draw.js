@@ -169,8 +169,6 @@ Visualizer.prototype.Draw = function() {
     if (this.activeBox != null) {
         this.activeBox.Draw(this.ctx, true, this.visualizeLoss != 'none')
     }
-
-    this.visualizeAreasBox.parentNode.style.display = this.CanVisualizeAreas() ? '' : 'none'
 }
 
 Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
