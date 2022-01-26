@@ -151,7 +151,7 @@ Visualizer.prototype.RestoreBboxes = function(data) {
     bboxes = JSON.parse(data)
 
     for (let bbox of bboxes) {
-        let box = new BoundingBox(bbox.x1, bbox.y1, bbox.x2, bbox.y2, bbox.color)
+        let box = new BoundingBox(bbox.x1, bbox.y1, bbox.x2, bbox.y2, bbox.color, bbox.iw, bbox.ih)
         box.isCreated = bbox.isCreated
         this.bboxes.push(box)
     }
@@ -210,25 +210,24 @@ Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false)
     throw "unknown loss '" + name + '"'
 }
 
-
-Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox, lossName) {
+Visualizer.prototype.EvaluateLoss = function(realBox, predBox, lossName) {
     // real nodes
-    let real_x1 = new Constant(real.x1)
-    let real_x2 = new Constant(real.x2)
+    let real_x1 = new Constant(realBox.nx1)
+    let real_x2 = new Constant(realBox.nx2)
 
-    let real_y1 = new Constant(real.y1)
-    let real_y2 = new Constant(real.y2)
+    let real_y1 = new Constant(realBox.ny1)
+    let real_y2 = new Constant(realBox.ny2)
 
     let real_width = new Sub(real_x2, real_x1)
     let real_height = new Sub(real_y2, real_y1)
     let real_area = new Mult(real_width, real_height)
 
     // pred nodes
-    let pred_x1 = new Variable(pred.x1)
-    let pred_x2 = new Variable(pred.x2)
+    let pred_x1 = new Variable(predBox.nx1)
+    let pred_x2 = new Variable(predBox.nx2)
 
-    let pred_y1 = new Variable(pred.y1)
-    let pred_y2 = new Variable(pred.y2)
+    let pred_y1 = new Variable(predBox.ny1)
+    let pred_y2 = new Variable(predBox.ny2)
 
     let pred_width = new Sub(pred_x2, pred_x1)
     let pred_height = new Sub(pred_y2, pred_y1)
@@ -293,14 +292,7 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
     let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
     let predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
 
-    let reals = []
-
-    for (let box of realBoxes) {
-        reals.push(box.GetNormalizedParams(this.imageWidth, this.imageHeight))
-    }
-
     let predBoxes = []
-    let preds = []
     let names = []
 
     if (this.visualizeLoss == 'none') {
@@ -310,13 +302,11 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
             let box = predBox.Copy(names[i], i * LOSS_COLOR_STEP)
             predBoxes.push(box)
             this.bboxes.push(box)
-            preds.push(box.GetNormalizedParams(this.imageWidth, this.imageHeight))
         }
     }
     else {
         names = [this.visualizeLoss]
         predBoxes.push(predBox)
-        preds.push(predBox.GetNormalizedParams(this.imageWidth, this.imageHeight))
     }
 
     let lossValues = {}
@@ -325,7 +315,7 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
 
     let totalMaxLoss = 0
 
-    this.OptimizeStep(reals, preds, realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha)
+    this.OptimizeStep(realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha)
 }
 
 Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
@@ -344,7 +334,7 @@ Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
     return imax
 }
 
-Visualizer.prototype.OptimizeStep = function(reals, preds, realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
+Visualizer.prototype.OptimizeStep = function(realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
     let losses = []
     let maxLoss = 0
     let threshold = 0.014
@@ -353,7 +343,7 @@ Visualizer.prototype.OptimizeStep = function(reals, preds, realBoxes, predBoxes,
 
     for (let i = 0; i < names.length; i++) {
         let index = this.GetOptimalRealBox(predBoxes[i], realBoxes)
-        losses[i] = this.EvaluateLoss(reals[index], preds[i], realBoxes[index], predBoxes[i], names[i])
+        losses[i] = this.EvaluateLoss(realBoxes[index], predBoxes[i], names[i])
         maxLoss = Math.max(maxLoss, losses[i].loss)
     }
 
@@ -374,22 +364,22 @@ Visualizer.prototype.OptimizeStep = function(reals, preds, realBoxes, predBoxes,
         lossValues[names[i]].push(losses[i].loss)
         console.log(losses[i].loss, steps)
 
-        preds[i].x1 -= alpha * losses[i].dx1 * scale
-        preds[i].x2 -= alpha * losses[i].dx2 * scale
-        preds[i].y1 -= alpha * losses[i].dy1 * scale
-        preds[i].y2 -= alpha * losses[i].dy2 * scale
-
         if (this.visualizeLoss == 'none') {
             predBoxes[i].name = `${names[i]} = ${this.Round(losses[i].loss)}`
         }
 
-        predBoxes[i].x1 = Math.round(preds[i].x1 * this.imageWidth)
-        predBoxes[i].y1 = Math.round(preds[i].y1 * this.imageHeight)
-        predBoxes[i].x2 = Math.round(preds[i].x2 * this.imageWidth)
-        predBoxes[i].y2 = Math.round(preds[i].y2 * this.imageHeight)
+        predBoxes[i].nx1 -= alpha * losses[i].dx1 * scale
+        predBoxes[i].nx2 -= alpha * losses[i].dx2 * scale
+        predBoxes[i].ny1 -= alpha * losses[i].dy1 * scale
+        predBoxes[i].ny2 -= alpha * losses[i].dy2 * scale
+
+        predBoxes[i].x1 = Math.round(predBoxes[i].nx1 * this.imageWidth)
+        predBoxes[i].y1 = Math.round(predBoxes[i].ny1 * this.imageHeight)
+        predBoxes[i].x2 = Math.round(predBoxes[i].nx2 * this.imageWidth)
+        predBoxes[i].y2 = Math.round(predBoxes[i].ny2 * this.imageHeight)
     }
 
     console.log('')
 
-    requestAnimationFrame(() => this.OptimizeStep(reals, preds, realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
+    requestAnimationFrame(() => this.OptimizeStep(realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
 }

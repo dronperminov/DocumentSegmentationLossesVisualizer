@@ -67,7 +67,7 @@ Visualizer.prototype.MouseDown = function(e) {
         let color = e.button == 2 ? BBOX_PRED_COLOR : BBOX_REAL_COLOR
 
         if (this.CanAddBbox(color)) {
-            this.activeBox = new BoundingBox(x, y, x, y, color)
+            this.activeBox = new BoundingBox(x, y, x, y, color, this.imageWidth, this.imageHeight)
             this.action = ACTION_CREATE
         }
     }

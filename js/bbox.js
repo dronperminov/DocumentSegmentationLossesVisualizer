@@ -1,16 +1,19 @@
-function BoundingBox(x1, y1, x2, y2, color, isCreated = false, name = '') {
+function BoundingBox(x1, y1, x2, y2, color, iw, ih, isCreated = false, name = '') {
     this.x1 = x1
     this.y1 = y1
     this.x2 = x2
     this.y2 = y2
     this.color = color // hsv angle
+    this.iw = iw
+    this.ih = ih
     this.name = name
 
     this.isCreated = isCreated
+    this.UpdateNormalizedParams()
 }
 
 BoundingBox.prototype.Copy = function(name, color) {
-    return new BoundingBox(this.x1, this.y1, this.x2, this.y2, color, this.isCreated, name)
+    return new BoundingBox(this.x1, this.y1, this.x2, this.y2, color, this.iw, this.ih, this.isCreated, name)
 }
 
 BoundingBox.prototype.Move = function(dx, dy) {
@@ -21,6 +24,8 @@ BoundingBox.prototype.Move = function(dx, dy) {
 
     this.x2 += dx
     this.y2 += dy
+
+    this.UpdateNormalizedParams()
 }
 
 BoundingBox.prototype.Resize = function(dir, dx, dy) {
@@ -39,6 +44,8 @@ BoundingBox.prototype.Resize = function(dir, dx, dy) {
     if (dir.startsWith('s')) {
         this.y2 += dy
     }
+
+    this.UpdateNormalizedParams()
 }
 
 BoundingBox.prototype.Create = function() {
@@ -51,6 +58,7 @@ BoundingBox.prototype.Normalize = function() {
     this.y1 = bbox.y1
     this.x2 = bbox.x2
     this.y2 = bbox.y2
+    this.UpdateNormalizedParams()
 }
 
 BoundingBox.prototype.IsNormal = function() {
@@ -74,8 +82,11 @@ BoundingBox.prototype.GetNormalParams = function() {
     return { x1: x1, y1: y1, x2: x2, y2: y2 }
 }
 
-BoundingBox.prototype.GetNormalizedParams = function(width, height) {
-    return { x1: this.x1 / width, y1: this.y1 / height, x2: this.x2 / width, y2: this.y2 / height }
+BoundingBox.prototype.UpdateNormalizedParams = function() {
+    this.nx1 = this.x1 / this.iw
+    this.ny1 = this.y1 / this.ih
+    this.nx2 = this.x2 / this.iw
+    this.ny2 = this.y2 / this.ih
 }
 
 BoundingBox.prototype.IsMouseHover = function(x, y) {
@@ -163,7 +174,7 @@ BoundingBox.prototype.Intersection = function(bbox) {
     if (x2 < x1 || y2 < y1)
         return null
 
-    return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2)
+    return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2, this.iw, this.ih)
 }
 
 BoundingBox.prototype.CountByThreshold = function(pixels, threshold = 120, isLess = true) {
