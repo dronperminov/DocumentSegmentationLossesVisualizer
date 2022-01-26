@@ -43,11 +43,7 @@ Visualizer.prototype.DrawLoss = function() {
     pred = pred[0]
     let info = real.GetInfo(pred, this.ctx, this.threshold)
 
-    if (info != null) {
-        let int = real.Intersection(pred)
-
-        this.metrics.innerHTML +=
-        `<table>\
+    let tableBoxes = `
             <tr><th>Bbox</th><th>Coord</th><th>Area</th><th>Black (■)</th><th>White (□)</th></tr>
             <tr>
                 <td style="color: hsl(120, 70%, 50%)"><b>real</b></td>
@@ -62,10 +58,15 @@ Visualizer.prototype.DrawLoss = function() {
                 <td>${info.predArea}</td>
                 <td>${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})</td>
                 <td>${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})</td>
-            </tr>
+            </tr>`
+
+    let tableIntersection = ''
+
+    if (info.haveIntersection) {
+        tableIntersection = `
             <tr>
                 <td><b>∩</b></td>
-                <td>${int.ToString()}</td>
+                <td>${info.intersection.ToString()}</td>
                 <td>${info.intersectionArea}</td>
                 <td>${this.Round(info.intersectionBlackCount / info.intersectionArea)} (${info.intersectionBlackCount})</td>
                 <td>${this.Round(info.intersectionWhiteCount / info.intersectionArea)} (${info.intersectionWhiteCount})</td>
@@ -76,9 +77,10 @@ Visualizer.prototype.DrawLoss = function() {
                 <td>${info.unionArea}</td>
                 <td>${this.Round(info.unionBlackCount / info.unionArea)} (${info.unionBlackCount})</td>
                 <td>${this.Round(info.unionWhiteCount / info.unionArea)} (${info.unionWhiteCount})</td>
-            </tr>
-        </table><hr>`
+            </tr>`
     }
+
+    this.metrics.innerHTML += `<table>${tableBoxes}${tableIntersection}</table><hr>`
 
     let losses = this.GetLosses(real, pred)
 
@@ -88,6 +90,7 @@ Visualizer.prototype.DrawLoss = function() {
         <tr>
             <th>Loss</th>
             <th>IoU</th>
+            <th>1 - IoU</th>
             <th>PIoU</th>
             <th>BWIoU</th>
             <th>BWIoU<sub>weighted</sub></th>
@@ -95,6 +98,7 @@ Visualizer.prototype.DrawLoss = function() {
         <tr>
             <td>L</td>
             <td rowspan="3"><span class="box" style="background: ${this.LossToColor(losses.iou)}"></span> ${this.Round(losses.iou)}</td>
+            <td rowspan="3"><span class="box" style="background: ${this.LossToColor(1 - losses.iou)}"></span> ${this.Round(1 - losses.iou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.piou)}"></span> ${this.Round(losses.piou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou)}"></span> ${this.Round(losses.bwiou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou)}"></span> ${this.Round(losses.weighted_bwiou)}</td>
