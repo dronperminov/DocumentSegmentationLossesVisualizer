@@ -195,8 +195,10 @@ Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
     let ymin = height - padding
     let ymax = padding
 
-    for (let index = 0; index < names.length; index++) {
-        let name = names[index]
+    let sortedNames = names.slice().sort((a, b) => losses[a].length - losses[b].length)
+
+    for (let index = 0; index < sortedNames.length; index++) {
+        let name = sortedNames[index]
         let loss = losses[name]
 
         this.lossesCtx.font = '15px serif'
