@@ -1,188 +1,174 @@
-function Number(value) {
+function Variable(value, name) {
+    this.value = value
+}
+
+function Constant(value) {
     this.value = value
 }
 
 function Add(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
-    this.value = null
 }
 
 function Sub(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
-    this.value = null
 }
 
 function Mult(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
-    this.value = null
 }
 
 function Div(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
-    this.value = null
 }
 
 function Max(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
-    this.value = null
 }
 
 function Min(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
-    this.value = null
+}
+
+function Clamp(arg, threshold = 0) {
+    this.arg = arg
+    this.threshold = threshold
+}
+
+function Square(arg) {
+    this.arg = arg
 }
 
 function Atan(arg) {
     this.arg = arg
-    this.value = null
 }
 
-Number.prototype.Forward = function() {
+function BackwardOne(value) {
+    this.arg.Backward(this.grad * value)
+}
+
+function BackwardTwo(value) {
+    this.arg1.Backward(this.grad1 * value)
+    this.arg2.Backward(this.grad2 * value)
+}
+
+Variable.prototype.Forward = function() {
     this.grad = 0
     return this.value
 }
 
-Number.prototype.Backward = function(value) {
+Variable.prototype.Backward = function(value) {
     this.grad += value
 }
 
+Constant.prototype.Forward = function() {
+    return this.value
+}
+
+Constant.prototype.Backward = function(value) {
+
+}
 
 Add.prototype.Forward = function() {
-    if (this.value == null) {
-        this.grad1 = 1
-        this.grad2 = 1
-        this.value = this.arg1.Forward() + this.arg2.Forward()
-    }
-
-    return this.value
+    this.grad1 = 1
+    this.grad2 = 1
+    return this.arg1.Forward() + this.arg2.Forward()
 }
-
-Add.prototype.Backward = function(value) {
-    this.arg1.Backward(this.grad1 * value)
-    this.arg2.Backward(this.grad2 * value)
-}
-
 
 Sub.prototype.Forward = function() {
-    if (this.value == null) {
-        this.grad1 = 1
-        this.grad2 = -1
-        this.value = this.arg1.Forward() - this.arg2.Forward()
-    }
-
-    return this.value
+    this.grad1 = 1
+    this.grad2 = -1
+    return this.arg1.Forward() - this.arg2.Forward()
 }
-
-Sub.prototype.Backward = function(value) {
-    this.arg1.Backward(this.grad1 * value)
-    this.arg2.Backward(this.grad2 * value)
-}
-
 
 Mult.prototype.Forward = function() {
-    if (this.value == null) {
-        let v1 = this.arg1.Forward()
-        let v2 = this.arg2.Forward()
+    let v1 = this.arg1.Forward()
+    let v2 = this.arg2.Forward()
 
-        this.grad1 = v2
-        this.grad2 = v1
-        this.value = v1 * v2
-    }
-
-    return this.value
+    this.grad1 = v2
+    this.grad2 = v1
+    return v1 * v2
 }
-
-Mult.prototype.Backward = function(value) {
-    this.arg1.Backward(this.grad1 * value)
-    this.arg2.Backward(this.grad2 * value)
-}
-
 
 Div.prototype.Forward = function() {
-    if (this.value == null) {
-        let v1 = this.arg1.Forward()
-        let v2 = this.arg2.Forward()
+    let v1 = this.arg1.Forward()
+    let v2 = this.arg2.Forward()
 
-        this.grad1 = 1 / v2
-        this.grad2 = -v1 / (v2 * v2)
-        this.value = v1 / v2
-    }
-
-    return this.value
+    this.grad1 = 1 / v2
+    this.grad2 = -v1 / (v2 * v2)
+    return v1 / v2
 }
-
-Div.prototype.Backward = function(value) {
-    this.arg1.Backward(this.grad1 * value)
-    this.arg2.Backward(this.grad2 * value)
-}
-
 
 Max.prototype.Forward = function() {
-    if (this.value == null) {
-        let v1 = this.arg1.Forward()
-        let v2 = this.arg2.Forward()
+    let v1 = this.arg1.Forward()
+    let v2 = this.arg2.Forward()
 
-        if (v1 > v2) {
-            this.grad1 = 1
-            this.grad2 = 0
-            this.value = v1
-        }
-        else {
-            this.grad1 = 0
-            this.grad2 = 1
-            this.value = v2
-        }
+    if (v1 > v2) {
+        this.grad1 = 1
+        this.grad2 = 0
+        return v1
     }
-
-    return this.value
+    else {
+        this.grad1 = 0
+        this.grad2 = 1
+        return v2
+    }
 }
-
-Max.prototype.Backward = function(value) {
-    this.arg1.Backward(this.grad1 * value)
-    this.arg2.Backward(this.grad2 * value)
-}
-
 
 Min.prototype.Forward = function() {
-    if (this.value == null) {
-        let v1 = this.arg1.Forward()
-        let v2 = this.arg2.Forward()
+    let v1 = this.arg1.Forward()
+    let v2 = this.arg2.Forward()
 
-        if (v1 < v2) {
-            this.grad1 = 1
-            this.grad2 = 0
-            this.value = v1
-        }
-        else {
-            this.grad1 = 0
-            this.grad2 = 1
-            this.value = v2
-        }
+    if (v1 < v2) {
+        this.grad1 = 1
+        this.grad2 = 0
+        return v1
     }
-
-    return this.value
+    else {
+        this.grad1 = 0
+        this.grad2 = 1
+        return v2
+    }
 }
 
-Min.prototype.Backward = function(value) {
-    this.arg1.Backward(this.grad1 * value)
-    this.arg2.Backward(this.grad2 * value)
+Clamp.prototype.Forward = function() {
+    let value = this.arg.Forward()
+
+    if (value > this.threshold) {
+        this.grad = 1
+        return value
+    }
+    else {
+        this.grad = 0
+        return 0
+    }
+}
+
+Square.prototype.Forward = function() {
+    let v = this.arg.Forward()
+    this.grad = 2 * v
+    return v * v
 }
 
 Atan.prototype.Forward = function() {
-    if (this.value == null) {
-        this.value = Math.atan(this.arg.Forward())
-        this.grad = 1 / (this.value * this.value + 1)
-    }
+    let value = Math.atan(this.arg.Forward())
+    this.grad = 1 / (value * value + 1)
 
-    return this.value
+    return value
 }
 
-Atan.prototype.Backward = function(value) {
-    this.arg.Backward(this.grad * value)
-}
+Add.prototype.Backward = BackwardTwo
+Sub.prototype.Backward = BackwardTwo
+Mult.prototype.Backward = BackwardTwo
+Div.prototype.Backward = BackwardTwo
+Max.prototype.Backward = BackwardTwo
+Min.prototype.Backward = BackwardTwo
+Clamp.prototype.Backward = BackwardOne
+Square.prototype.Backward = BackwardOne
+Atan.prototype.Backward = BackwardOne

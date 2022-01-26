@@ -209,24 +209,24 @@ Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false)
 }
 
 
-Visualizer.prototype.EvaluateLoss = function() {
+Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox) {
     // real nodes
-    let real_x1 = new Number(this.real.x1)
-    let real_x2 = new Number(this.real.x2)
+    let real_x1 = new Constant(real.x1)
+    let real_x2 = new Constant(real.x2)
 
-    let real_y1 = new Number(this.real.y1)
-    let real_y2 = new Number(this.real.y2)
+    let real_y1 = new Constant(real.y1)
+    let real_y2 = new Constant(real.y2)
 
     let real_width = new Sub(real_x2, real_x1)
     let real_height = new Sub(real_y2, real_y1)
     let real_area = new Mult(real_width, real_height)
 
     // pred nodes
-    let pred_x1 = new Number(this.pred.x1)
-    let pred_x2 = new Number(this.pred.x2)
+    let pred_x1 = new Variable(pred.x1)
+    let pred_x2 = new Variable(pred.x2)
 
-    let pred_y1 = new Number(this.pred.y1)
-    let pred_y2 = new Number(this.pred.y2)
+    let pred_y1 = new Variable(pred.y1)
+    let pred_y2 = new Variable(pred.y2)
 
     let pred_width = new Sub(pred_x2, pred_x1)
     let pred_height = new Sub(pred_y2, pred_y1)
@@ -239,8 +239,8 @@ Visualizer.prototype.EvaluateLoss = function() {
     let int_y1 = new Max(real_y1, pred_y1)
     let int_y2 = new Min(real_y2, pred_y2)
 
-    let int_width = new Max(new Sub(int_x2, int_x1), new Number(0))
-    let int_height = new Max(new Sub(int_y2, int_y1), new Number(0))
+    let int_width = new Clamp(new Sub(int_x2, int_x1), 0)
+    let int_height = new Clamp(new Sub(int_y2, int_y1), 0)
     let int_area = new Mult(int_width, int_height)
 
     let union_area = new Sub(new Add(real_area, pred_area), int_area)
@@ -249,20 +249,20 @@ Visualizer.prototype.EvaluateLoss = function() {
     if (this.diouBox.checked || this.ciouBox.checked) {
         let cw = new Sub(new Max(pred_x2, real_x2), new Min(pred_x1, real_x1))
         let ch = new Sub(new Max(pred_y2, real_y2), new Min(pred_y1, real_y1))
-        let c2 = new Add(new Mult(cw, cw), new Mult(ch, ch))
+        let c2 = new Add(new Square(cw), new Square(ch))
 
         let arg1 = new Sub(new Add(real_x1, real_x2), new Add(pred_x1, pred_x2))
         let arg2 = new Sub(new Add(real_y1, real_y2), new Add(pred_y1, pred_y2))
 
-        let rho2 = new Div(new Add(new Mult(arg1, arg1), new Mult(arg2, arg2)), new Number(4))
+        let rho2 = new Div(new Add(new Square(arg1), new Square(arg2)), new Constant(4))
 
         if (this.ciouBox.checked) {
             let a1 = new Atan(new Div(real_width, real_height))
             let a2 = new Atan(new Div(pred_width, pred_height))
             let a = new Sub(a2, a1)
 
-            let v = new Mult(new Number(4 / (Math.PI * Math.PI)), new Mult(a, a))
-            let alpha = new Div(v, new Add(new Sub(v, iou), new Number(1 + 1e-8)))
+            let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(a))
+            let alpha = new Div(v, new Add(new Sub(v, iou), new Constant(1 + 1e-8)))
 
             iou = new Sub(iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
         }
@@ -272,7 +272,7 @@ Visualizer.prototype.EvaluateLoss = function() {
     }
 
     let L = iou.Forward()
-    let scale = this.GetLossByName(this.realBox, this.predBox, this.visualizeLoss, true)
+    let scale = this.GetLossByName(realBox, predBox, this.visualizeLoss, true)
     iou.Backward(scale)
 
     return {
@@ -284,18 +284,18 @@ Visualizer.prototype.EvaluateLoss = function() {
     }
 }
 
-Visualizer.prototype.Optimize = function(alpha = 0.001) {
-    this.realBox = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
-    this.predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
+Visualizer.prototype.Optimize = function(alpha = 0.0005) {
+    let realBox = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
+    let predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
 
-    this.real = { x1: this.realBox.x1 / this.imageWidth, y1: this.realBox.y1 / this.imageHeight, x2: this.realBox.x2 / this.imageWidth, y2: this.realBox.y2 / this.imageHeight }
-    this.pred = { x1: this.predBox.x1 / this.imageWidth, y1: this.predBox.y1 / this.imageHeight, x2: this.predBox.x2 / this.imageWidth, y2: this.predBox.y2 / this.imageHeight }
+    let real = { x1: realBox.x1 / this.imageWidth, y1: realBox.y1 / this.imageHeight, x2: realBox.x2 / this.imageWidth, y2: realBox.y2 / this.imageHeight }
+    let pred = { x1: predBox.x1 / this.imageWidth, y1: predBox.y1 / this.imageHeight, x2: predBox.x2 / this.imageWidth, y2: predBox.y2 / this.imageHeight }
 
-    this.OptimizeStep(alpha)
+    this.OptimizeStep(real, pred, realBox, predBox, alpha)
 }
 
-Visualizer.prototype.OptimizeStep = function(alpha, steps = 0) {
-    let loss = this.EvaluateLoss()
+Visualizer.prototype.OptimizeStep = function(real, pred, realBox, predBox, alpha, steps = 0) {
+    let loss = this.EvaluateLoss(real, pred, realBox, predBox)
 
     if (loss.loss < 0.01)
         return
@@ -304,16 +304,16 @@ Visualizer.prototype.OptimizeStep = function(alpha, steps = 0) {
 
     console.log(loss.loss, steps)
 
-    this.pred.x1 -= alpha * loss.dx1 * scale
-    this.pred.x2 -= alpha * loss.dx2 * scale
-    this.pred.y1 -= alpha * loss.dy1 * scale
-    this.pred.y2 -= alpha * loss.dy2 * scale
+    pred.x1 -= alpha * loss.dx1 * scale
+    pred.x2 -= alpha * loss.dx2 * scale
+    pred.y1 -= alpha * loss.dy1 * scale
+    pred.y2 -= alpha * loss.dy2 * scale
 
-    this.predBox.x1 = Math.round(this.pred.x1 * this.imageWidth)
-    this.predBox.y1 = Math.round(this.pred.y1 * this.imageHeight)
-    this.predBox.x2 = Math.round(this.pred.x2 * this.imageWidth)
-    this.predBox.y2 = Math.round(this.pred.y2 * this.imageHeight)
+    predBox.x1 = Math.round(pred.x1 * this.imageWidth)
+    predBox.y1 = Math.round(pred.y1 * this.imageHeight)
+    predBox.x2 = Math.round(pred.x2 * this.imageWidth)
+    predBox.y2 = Math.round(pred.y2 * this.imageHeight)
 
     this.needUpdate = true
-    requestAnimationFrame(() => this.OptimizeStep(alpha, steps + 1))
+    requestAnimationFrame(() => this.OptimizeStep(real, pred, realBox, predBox, alpha, steps + 1))
 }
