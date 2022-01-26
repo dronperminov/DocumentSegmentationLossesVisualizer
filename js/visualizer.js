@@ -288,10 +288,20 @@ Visualizer.prototype.EvaluateLoss = function(realBox, predBox, lossName) {
     }
 }
 
-Visualizer.prototype.Optimize = function(alpha = 0.0005) {
-    let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
-    let predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
+Visualizer.prototype.RemoveOptimizedBoxes = function() {
+    let cleared = []
 
+    for (let box of this.bboxes)
+        if (box.color == BBOX_PRED_COLOR || box.color == BBOX_REAL_COLOR)
+            cleared.push(box)
+
+    this.bboxes = cleared
+}
+
+Visualizer.prototype.Optimize = function(alpha = 0.0005) {
+    this.RemoveOptimizedBoxes()
+
+    let predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
     let predBoxes = []
     let names = []
 
@@ -299,7 +309,7 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
         names = ['IoU', 'PIoU', 'BWIoU', 'Weighted BWIoU', 'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)']
 
         for (let i = 0; i < names.length; i++) {
-            let box = predBox.Copy(names[i], i * LOSS_COLOR_STEP)
+            let box = predBox.Copy(names[i], LOSS_COLOR_START + i * LOSS_COLOR_STEP)
             predBoxes.push(box)
             this.bboxes.push(box)
         }
@@ -315,7 +325,7 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
 
     let totalMaxLoss = 0
 
-    this.OptimizeStep(realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha)
+    this.OptimizeStep(predBoxes, names, lossValues, totalMaxLoss, alpha)
 }
 
 Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
@@ -334,7 +344,9 @@ Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
     return imax
 }
 
-Visualizer.prototype.OptimizeStep = function(realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
+Visualizer.prototype.OptimizeStep = function(predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
+    let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
+
     let losses = []
     let maxLoss = 0
     let threshold = 0.014
@@ -381,5 +393,5 @@ Visualizer.prototype.OptimizeStep = function(realBoxes, predBoxes, names, lossVa
 
     console.log('')
 
-    requestAnimationFrame(() => this.OptimizeStep(realBoxes, predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
+    requestAnimationFrame(() => this.OptimizeStep(predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
 }

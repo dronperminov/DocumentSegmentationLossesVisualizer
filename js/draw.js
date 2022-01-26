@@ -198,16 +198,16 @@ Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
         this.lossesCtx.font = '15px serif'
         this.lossesCtx.textAlign = 'right'
         this.lossesCtx.textBaseline = 'top'
-        this.lossesCtx.fillStyle = `hsl(${index * LOSS_COLOR_STEP}, 50%, 70%)`
+        this.lossesCtx.fillStyle = `hsl(${LOSS_COLOR_START + index * LOSS_COLOR_STEP}, 50%, 70%)`
         this.lossesCtx.fillText(`${name} = ${this.Round(loss[loss.length - 1])} (${loss.length} steps)`, width - padding, padding + index * 15)
 
         this.lossesCtx.lineWidth = 2
-        this.lossesCtx.strokeStyle = `hsl(${index * LOSS_COLOR_STEP}, 50%, 70%)`
+        this.lossesCtx.strokeStyle = `hsl(${LOSS_COLOR_START + index * LOSS_COLOR_STEP}, 50%, 70%)`
         this.lossesCtx.beginPath()
 
         for (let i = 0; i < steps; i++) {
             let x = steps > 0 ? xmin + (xmax - xmin) * i / steps : (xmax + xmin) / 2
-            let y = ymin + loss[i] / maxLoss * (ymax - ymin)
+            let y = ymin + loss[i] / Math.max(1, maxLoss) * (ymax - ymin)
 
             if (i == 0)
                 this.lossesCtx.moveTo(x, y)
