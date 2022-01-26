@@ -2,6 +2,7 @@ Visualizer.prototype.Clear = function() {
     this.ctx.fillStyle = '#fff'
     this.ctx.fillRect(0, 0, this.width, this.height)
     this.canvas.style.cursor = 'default'
+    this.ctx.drawImage(this.image, 0, 0, this.imageWidth, this.imageHeight)
 }
 
 Visualizer.prototype.UpdateCursor = function(bbox, x, y) {
@@ -16,7 +17,7 @@ Visualizer.prototype.UpdateCursor = function(bbox, x, y) {
 Visualizer.prototype.DrawBboxes = function() {
     for (let bbox of this.bboxes) {
         if (bbox != this.activeBox) {
-            bbox.Draw(this.ctx, false, this.visualizeLoss != 'none')
+            bbox.Draw(this.ctx, false, this.visualizeLoss != 'none' || this.bboxes.length > 2)
         }
 
         if (bbox.IsMouseHover(this.currPoint.x, this.currPoint.y)) {
@@ -154,12 +155,10 @@ Visualizer.prototype.VisualizeAreas = function() {
 
 Visualizer.prototype.Draw = function() {
     this.Clear()
-    this.ctx.drawImage(this.image, 0, 0, this.imageWidth, this.imageHeight)
 
     if (this.needUpdate) {
         this.needUpdate = false
         this.DrawLoss()
-
     }
 
     if (this.CanVisualizeAreas() && this.visualizeLoss != 'none')
@@ -172,4 +171,52 @@ Visualizer.prototype.Draw = function() {
     }
 
     this.visualizeAreasBox.parentNode.style.display = this.CanVisualizeAreas() ? '' : 'none'
+}
+
+Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
+    let padding = 1
+    let width = this.lossesCanvas.width
+    let height = this.lossesCanvas.height
+
+    this.lossesCtx.clearRect(0, 0, width, height)
+    this.lossesCtx.strokeStyle = '#000'
+    this.lossesCtx.lineWidth = 1
+    this.lossesCtx.beginPath()
+    this.lossesCtx.moveTo(padding, padding)
+    this.lossesCtx.lineTo(padding, height - padding)
+    this.lossesCtx.lineTo(width - padding, height - padding)
+    this.lossesCtx.stroke()
+
+    let xmin = padding
+    let xmax = width - padding
+
+    let ymin = height - padding
+    let ymax = padding
+
+    for (let index = 0; index < names.length; index++) {
+        let name = names[index]
+        let loss = losses[name]
+
+        this.lossesCtx.font = '15px serif'
+        this.lossesCtx.textAlign = 'right'
+        this.lossesCtx.textBaseline = 'top'
+        this.lossesCtx.fillStyle = `hsl(${index * LOSS_COLOR_STEP}, 50%, 70%)`
+        this.lossesCtx.fillText(`${name} = ${this.Round(loss[loss.length - 1])} (${loss.length} steps)`, width - padding, padding + index * 15)
+
+        this.lossesCtx.lineWidth = 2
+        this.lossesCtx.strokeStyle = `hsl(${index * LOSS_COLOR_STEP}, 50%, 70%)`
+        this.lossesCtx.beginPath()
+
+        for (let i = 0; i < steps; i++) {
+            let x = steps > 0 ? xmin + (xmax - xmin) * i / steps : (xmax + xmin) / 2
+            let y = ymin + loss[i] / maxLoss * (ymax - ymin)
+
+            if (i == 0)
+                this.lossesCtx.moveTo(x, y)
+            else
+                this.lossesCtx.lineTo(x, y)
+        }
+
+        this.lossesCtx.stroke()
+    }
 }

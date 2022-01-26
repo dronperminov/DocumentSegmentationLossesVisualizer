@@ -1,11 +1,16 @@
-function BoundingBox(x1, y1, x2, y2, color, isCreated = false) {
+function BoundingBox(x1, y1, x2, y2, color, isCreated = false, name = '') {
     this.x1 = x1
     this.y1 = y1
     this.x2 = x2
     this.y2 = y2
     this.color = color // hsv angle
+    this.name = name
 
     this.isCreated = isCreated
+}
+
+BoundingBox.prototype.Copy = function(name, color) {
+    return new BoundingBox(this.x1, this.y1, this.x2, this.y2, color, this.isCreated, name)
 }
 
 BoundingBox.prototype.Move = function(dx, dy) {
@@ -69,6 +74,10 @@ BoundingBox.prototype.GetNormalParams = function() {
     return { x1: x1, y1: y1, x2: x2, y2: y2 }
 }
 
+BoundingBox.prototype.GetNormalizedParams = function(width, height) {
+    return { x1: this.x1 / width, y1: this.y1 / height, x2: this.x2 / width, y2: this.y2 / height }
+}
+
 BoundingBox.prototype.IsMouseHover = function(x, y) {
     let bbox = this.GetNormalParams()
     return bbox.x1 - BBOX_RESIZE_DELTA <= x && x <= bbox.x2 + BBOX_RESIZE_DELTA && bbox.y1 - BBOX_RESIZE_DELTA <= y && y <= bbox.y2 + BBOX_RESIZE_DELTA
@@ -126,7 +135,14 @@ BoundingBox.prototype.Draw = function(ctx, isActive = false, onlyBorder = false)
     }
 
     ctx.stroke()
-    
+
+    if (this.name) {
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'bottom'
+        ctx.fillStyle = ctx.strokeStyle
+        ctx.fillText(this.name, this.x1, this.y1)
+    }
+
     ctx.setLineDash([])
 }
 

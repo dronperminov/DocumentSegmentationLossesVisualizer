@@ -1,5 +1,6 @@
 const BBOX_REAL_COLOR = 120
 const BBOX_PRED_COLOR = 0
+const LOSS_COLOR_STEP = 20
 
 const MIN_BBOX_WIDTH = 10
 const MIN_BBOX_HEIGHT = 10

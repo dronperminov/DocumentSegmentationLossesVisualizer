@@ -11,6 +11,11 @@ function Visualizer(canvasId, imagesSrc) {
     this.visualizeAreasBox = document.getElementById('visualize-loss-areas')
     this.optimizeBtn = document.getElementById('optimize-btn')
 
+    this.lossesCanvas = document.getElementById('losses-box')
+    this.lossesCtx = this.lossesCanvas.getContext('2d')
+    this.lossesCanvas.width = 500
+    this.lossesCanvas.height = 400
+
     this.InitControls()
     this.Reset()
 
@@ -54,12 +59,10 @@ Visualizer.prototype.InitControls = function() {
     this.ciouBox.addEventListener('change', () => { this.needUpdate = true })
 
     this.optimizeBtn.addEventListener('click', () => this.Optimize())
-    this.ChangeVisualizeLoss()
 }
 
 Visualizer.prototype.ChangeVisualizeLoss = function() {
     this.visualizeLoss = this.visualizeAreasBox.value
-    this.optimizeBtn.style.display = this.visualizeLoss == 'none' ? 'none' : ''
     this.needUpdate = true
 }
 
@@ -209,7 +212,7 @@ Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false)
 }
 
 
-Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox) {
+Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox, lossName) {
     // real nodes
     let real_x1 = new Constant(real.x1)
     let real_x2 = new Constant(real.x2)
@@ -246,6 +249,10 @@ Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox) {
     let union_area = new Sub(new Add(real_area, pred_area), int_area)
     let iou = new Div(int_area, union_area)
 
+    let scale = this.GetLossByName(realBox, predBox, lossName, true)
+
+    iou = new Mult(iou, new Constant(scale))
+
     if (this.diouBox.checked || this.ciouBox.checked) {
         let cw = new Sub(new Max(pred_x2, real_x2), new Min(pred_x1, real_x1))
         let ch = new Sub(new Max(pred_y2, real_y2), new Min(pred_y1, real_y1))
@@ -272,8 +279,7 @@ Visualizer.prototype.EvaluateLoss = function(real, pred, realBox, predBox) {
     }
 
     let L = iou.Forward()
-    let scale = this.GetLossByName(realBox, predBox, this.visualizeLoss, true)
-    iou.Backward(scale)
+    iou.Backward(1)
 
     return {
         loss: 1 - L,
@@ -288,32 +294,82 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
     let realBox = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
     let predBox = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
 
-    let real = { x1: realBox.x1 / this.imageWidth, y1: realBox.y1 / this.imageHeight, x2: realBox.x2 / this.imageWidth, y2: realBox.y2 / this.imageHeight }
-    let pred = { x1: predBox.x1 / this.imageWidth, y1: predBox.y1 / this.imageHeight, x2: predBox.x2 / this.imageWidth, y2: predBox.y2 / this.imageHeight }
+    let real = realBox.GetNormalizedParams(this.imageWidth, this.imageHeight)
 
-    this.OptimizeStep(real, pred, realBox, predBox, alpha)
+    let predBoxes = []
+    let preds = []
+    let names = []
+
+    if (this.visualizeLoss == 'none') {
+        names = ['IoU', 'PIoU', 'BWIoU', 'Weighted BWIoU', 'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)']
+
+        for (let i = 0; i < names.length; i++) {
+            let box = predBox.Copy(names[i], i * LOSS_COLOR_STEP)
+            predBoxes.push(box)
+            this.bboxes.push(box)
+            preds.push(box.GetNormalizedParams(this.imageWidth, this.imageHeight))
+        }
+    }
+    else {
+        names = [this.visualizeLoss]
+        predBoxes.push(predBox)
+        preds.push(predBox.GetNormalizedParams(this.imageWidth, this.imageHeight))
+    }
+
+    let lossValues = {}
+    for (let name of names)
+        lossValues[name] = []
+
+    let totalMaxLoss = 0
+
+    this.OptimizeStep(real, preds, realBox, predBoxes, names, lossValues, totalMaxLoss, alpha)
 }
 
-Visualizer.prototype.OptimizeStep = function(real, pred, realBox, predBox, alpha, steps = 0) {
-    let loss = this.EvaluateLoss(real, pred, realBox, predBox)
+Visualizer.prototype.OptimizeStep = function(real, preds, realBox, predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
+    let losses = []
+    let maxLoss = 0
+    let threshold = 0.015
 
-    if (loss.loss < 0.01)
+    this.Clear()
+
+    for (let i = 0; i < names.length; i++) {
+        losses[i] = this.EvaluateLoss(real, preds[i], realBox, predBoxes[i], names[i])
+        maxLoss = Math.max(maxLoss, losses[i].loss)
+    }
+
+    totalMaxLoss = Math.max(totalMaxLoss, maxLoss)
+    this.needUpdate = true
+    this.Draw()
+    this.PlotLosses(lossValues, names, steps, totalMaxLoss)
+
+    if (maxLoss < threshold)
         return
 
-    let scale = 1 + loss.loss
+    for (let i = 0; i < names.length; i++) {
+        let scale = 1 + losses[i].loss
 
-    console.log(loss.loss, steps)
+        if (losses[i].loss < threshold)
+            continue
 
-    pred.x1 -= alpha * loss.dx1 * scale
-    pred.x2 -= alpha * loss.dx2 * scale
-    pred.y1 -= alpha * loss.dy1 * scale
-    pred.y2 -= alpha * loss.dy2 * scale
+        lossValues[names[i]].push(losses[i].loss)
+        console.log(losses[i].loss, steps)
 
-    predBox.x1 = Math.round(pred.x1 * this.imageWidth)
-    predBox.y1 = Math.round(pred.y1 * this.imageHeight)
-    predBox.x2 = Math.round(pred.x2 * this.imageWidth)
-    predBox.y2 = Math.round(pred.y2 * this.imageHeight)
+        preds[i].x1 -= alpha * losses[i].dx1 * scale
+        preds[i].x2 -= alpha * losses[i].dx2 * scale
+        preds[i].y1 -= alpha * losses[i].dy1 * scale
+        preds[i].y2 -= alpha * losses[i].dy2 * scale
 
-    this.needUpdate = true
-    requestAnimationFrame(() => this.OptimizeStep(real, pred, realBox, predBox, alpha, steps + 1))
+        if (this.visualizeLoss == 'none') {
+            predBoxes[i].name = `${names[i]} = ${this.Round(losses[i].loss)}`
+        }
+
+        predBoxes[i].x1 = Math.round(preds[i].x1 * this.imageWidth)
+        predBoxes[i].y1 = Math.round(preds[i].y1 * this.imageHeight)
+        predBoxes[i].x2 = Math.round(preds[i].x2 * this.imageWidth)
+        predBoxes[i].y2 = Math.round(preds[i].y2 * this.imageHeight)
+    }
+
+    console.log('')
+
+    requestAnimationFrame(() => this.OptimizeStep(real, preds, realBox, predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
 }
