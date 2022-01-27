@@ -63,6 +63,39 @@ function GraphIoU() {
     this.ciou = new Sub(this.iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
     this.diou = new Sub(this.iou, new Div(rho2, c2))
     this.giou = new Sub(this.iou, new Div(new Sub(c_area, union_area), c_area))
+
+    // convex nodes
+    let convex_x1 = new Min(this.real_x1, this.pred_x1)
+    let convex_x2 = new Max(this.real_x2, this.pred_x2)
+
+    let convex_y1 = new Min(this.real_y1, this.pred_y1)
+    let convex_y2 = new Max(this.real_y2, this.pred_y2)
+
+    let wmin = new Sub(int_x2, int_x1)
+    let hmin = new Sub(int_y2, int_y1)
+
+    let wmax = new Sub(convex_x2, convex_x1)
+    let hmax = new Sub(convex_y2, convex_y1)
+
+    // let so = new Mult(new Add(new Div(wmin, wmax), new Div(hmin, hmax)), this.scale)
+    let so = new Add(new Div(wmin, wmax), new Div(hmin, hmax))
+
+    let dx1 = new Square(new Sub(this.real_x1, this.pred_x1))
+    let dy1 = new Square(new Sub(this.real_y1, this.pred_y1))
+    let d_lt = new Add(dx1, dy1)
+
+    let dx2 = new Square(new Sub(this.real_x2, this.pred_x2))
+    let dy2 = new Square(new Sub(this.real_y2, this.pred_y2))
+    let d_rb = new Add(dx2, dy2)
+
+    let dcx = new Square(new Sub(convex_x2, convex_x1))
+    let dcy = new Square(new Sub(convex_y2, convex_y1))
+    let d_diag = new Add(dcx, dcy)
+
+    let Lso = new Sub(new Constant(2), so)
+    let Lcd = new Add(new Div(d_lt, d_diag), new Div(d_rb, d_diag))
+
+    this.sca = new Sub(this.scale, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
@@ -88,6 +121,9 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     }
     else if (iouType == 'GIoU') {
         loss = this.giou
+    }
+    else if (iouType == 'SCA') {
+        loss = this.sca
     }
 
     let L = loss.Forward()

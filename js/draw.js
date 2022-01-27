@@ -60,6 +60,13 @@ Visualizer.prototype.DrawLoss = function() {
                 <td>${info.predArea}</td>
                 <td>${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})</td>
                 <td>${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})</td>
+            </tr>
+            <tr>
+                <td style="color: hsl(60, 70%, 50%)"><b>convex</b></td>
+                <td>${info.convex.ToString()}</td>
+                <td>${info.convexArea}</td>
+                <td>${this.Round(info.convexBlackCount / info.convexArea)} (${info.convexBlackCount})</td>
+                <td>${this.Round(info.convexWhiteCount / info.convexArea)} (${info.convexWhiteCount})</td>
             </tr>`
 
     let tableIntersection = ''
@@ -94,6 +101,7 @@ Visualizer.prototype.DrawLoss = function() {
             <th>${this.iouBox.value}</th>
             <th>1 - ${this.iouBox.value}</th>
             <th>PIoU</th>
+            <th>Convex PIoU</th>
             <th>BWIoU</th>
             <th>BWIoU<sub>weighted</sub></th>
         </tr>
@@ -106,6 +114,7 @@ Visualizer.prototype.DrawLoss = function() {
             <td rowspan="3"><span class="box" style="background: ${this.LossToColor(1 - losses.iou)}"></span> ${this.Round(1 - losses.iou)}</td>
 
             <td><span class="box" style="background: ${this.LossToColor(losses.piou)}"></span> ${this.Round(losses.piou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.convex_piou)}"></span> ${this.Round(losses.convex_piou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou)}"></span> ${this.Round(losses.bwiou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou)}"></span> ${this.Round(losses.weighted_bwiou)}</td>
         </tr>
@@ -113,6 +122,7 @@ Visualizer.prototype.DrawLoss = function() {
         <tr>
             <td>L × ${this.iouBox.value}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.piou_iou)}"></span> ${this.Round(losses.piou_iou)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.convex_piou_iou)}"></span> ${this.Round(losses.convex_piou_iou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_iou)}"></span> ${this.Round(losses.bwiou_iou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_iou)}"></span> ${this.Round(losses.weighted_bwiou_iou)}</td>
         </tr>
@@ -120,6 +130,7 @@ Visualizer.prototype.DrawLoss = function() {
         <tr>
             <td>(L + 1 - IoU) × ${this.iouBox.value}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.piou_champion)}"></span> ${this.Round(losses.piou_champion)}</td>
+            <td><span class="box" style="background: ${this.LossToColor(losses.convex_piou_champion)}"></span> ${this.Round(losses.convex_piou_champion)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_champion)}"></span> ${this.Round(losses.bwiou_champion)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_champion)}"></span> ${this.Round(losses.weighted_bwiou_champion)}</td>
         </tr>

@@ -228,6 +228,11 @@ BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
     let intersectionBlackCount = 0
     let intersectionWhiteCount = 0
 
+    let convex = this.Convex(bbox)
+    let convexArea = convex.GetArea()
+    let convexBlackCount = convex.CountByThreshold(data, threshold, true)
+    let convexWhiteCount = convex.CountByThreshold(data, threshold, false)
+
     let intersection = this.Intersection(bbox)
     let haveIntersection = intersection != null && intersection.GetArea() > 1
 
@@ -246,19 +251,23 @@ BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
         predArea,
         intersectionArea,
         unionArea,
+        convexArea,
 
         realBlackCount,
         predBlackCount,
         intersectionBlackCount,
         unionBlackCount,
+        convexBlackCount,
 
         realWhiteCount,
         predWhiteCount,
         intersectionWhiteCount,
         unionWhiteCount,
+        convexWhiteCount,
 
         haveIntersection,
         intersection,
+        convex
     }
 }
 
@@ -298,6 +307,45 @@ BoundingBox.prototype.IoU = function(bbox, iouType = 'IoU') {
 
         let c_area = cw * ch + 1e-8
         return iou - (c_area - unionArea) / c_area
+    }
+
+    if (iouType == 'SCA') {
+        let int_x1 = Math.max(this.x1, bbox.x1)
+        let int_x2 = Math.min(this.x2, bbox.x2)
+
+        let int_y1 = Math.max(this.y1, bbox.y1)
+        let int_y2 = Math.min(this.y2, bbox.y2)
+
+        let convex_x1 = Math.min(this.x1, bbox.x1)
+        let convex_x2 = Math.max(this.x2, bbox.x2)
+
+        let convex_y1 = Math.min(this.y1, bbox.y1)
+        let convex_y2 = Math.max(this.y2, bbox.y2)
+
+        let wmin = int_x2 - int_x1
+        let hmin = int_y2 - int_y1
+
+        let wmax = convex_x2 - convex_x1
+        let hmax = convex_y2 - convex_y1
+
+        let so = wmin / wmax + hmin / hmax
+
+        let dx1 = (this.x1 - bbox.x1) * (this.x1 - bbox.x1)
+        let dy1 = (this.y1 - bbox.y1) * (this.y1 - bbox.y1)
+        let d_lt = dx1 + dy1
+
+        let dx2 = (this.x2 - bbox.x2) * (this.x2 - bbox.x2)
+        let dy2 = (this.y2 - bbox.y2) * (this.y2 - bbox.y2)
+        let d_rb = dx2 + dy2
+
+        let dcx = (convex_x2 - convex_x1) * (convex_x2 - convex_x1)
+        let dcy = (convex_y2 - convex_y1) * (convex_y2 - convex_y1)
+        let d_diag = dcx + dcy
+
+        let Lso = 2 - so
+        let Lcd = d_lt / d_diag + d_rb / d_diag
+
+        return 1 - Lso - 0.2 * Lcd
     }
 
     return iou

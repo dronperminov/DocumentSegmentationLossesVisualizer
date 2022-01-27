@@ -255,7 +255,7 @@ Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
     let iou_max = -Infinity
 
     for (let i = 0; i < realBoxes.length; i++) {
-        let iou = realBoxes[i].IoU(predBox, true, false)
+        let iou = realBoxes[i].IoU(predBox, 'DIoU')
 
         if (iou > iou_max) {
             iou_max = iou
