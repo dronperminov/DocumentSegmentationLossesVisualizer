@@ -41,7 +41,9 @@ Visualizer.prototype.DrawLoss = function() {
 
     real = real[0]
     pred = pred[0]
-    let info = real.GetInfo(pred, this.ctx, this.threshold)
+
+    let data = this.ctx.getImageData(0, 0, this.imageWidth, this.imageHeight).data
+    let info = real.GetInfo(pred, data, this.threshold)
 
     let tableBoxes = `
             <tr><th>Bbox</th><th>Coord</th><th>Area</th><th>Black (■)</th><th>White (□)</th></tr>
@@ -85,34 +87,38 @@ Visualizer.prototype.DrawLoss = function() {
     let losses = this.GetLosses(real, pred)
 
     this.metrics.innerHTML += '<i>Функции потерь:</i><br>'
-    this.metrics.innerHTML +=
-    `<table>
+    this.metrics.innerHTML += `<table>
         <tr>
             <th>Loss</th>
-            <th>IoU</th>
-            <th>1 - IoU</th>
+            ${this.iouBox.value == 'IoU' ? '' : "<th>IoU</th><th>1 - IoU</th>"}
+            <th>${this.iouBox.value}</th>
+            <th>1 - ${this.iouBox.value}</th>
             <th>PIoU</th>
             <th>BWIoU</th>
             <th>BWIoU<sub>weighted</sub></th>
         </tr>
         <tr>
             <td>L</td>
+            ${this.iouBox.value == 'IoU' ? '' : '<td rowspan="3"><span class="box" style="background: ' + this.LossToColor(losses.iou_clear) + '"></span> ' + this.Round(losses.iou_clear) + '</td>'}
+            ${this.iouBox.value == 'IoU' ? '' : '<td rowspan="3"><span class="box" style="background: ' + this.LossToColor(1 - losses.iou_clear) + '"></span> ' + this.Round(1 - losses.iou_clear) + '</td>'}
+
             <td rowspan="3"><span class="box" style="background: ${this.LossToColor(losses.iou)}"></span> ${this.Round(losses.iou)}</td>
             <td rowspan="3"><span class="box" style="background: ${this.LossToColor(1 - losses.iou)}"></span> ${this.Round(1 - losses.iou)}</td>
+
             <td><span class="box" style="background: ${this.LossToColor(losses.piou)}"></span> ${this.Round(losses.piou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou)}"></span> ${this.Round(losses.bwiou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou)}"></span> ${this.Round(losses.weighted_bwiou)}</td>
         </tr>
 
         <tr>
-            <td>L × IoU</td>
+            <td>L × ${this.iouBox.value}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.piou_iou)}"></span> ${this.Round(losses.piou_iou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_iou)}"></span> ${this.Round(losses.bwiou_iou)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_iou)}"></span> ${this.Round(losses.weighted_bwiou_iou)}</td>
         </tr>
 
         <tr>
-            <td>(L + 1 - IoU) × IoU</td>
+            <td>(L + 1 - IoU) × ${this.iouBox.value}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.piou_champion)}"></span> ${this.Round(losses.piou_champion)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_champion)}"></span> ${this.Round(losses.bwiou_champion)}</td>
             <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_champion)}"></span> ${this.Round(losses.weighted_bwiou_champion)}</td>
@@ -195,7 +201,7 @@ Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
     let ymin = height - padding
     let ymax = padding
 
-    let sortedNames = names.slice().sort((a, b) => losses[a].length - losses[b].length)
+    let sortedNames = names.slice().sort((a, b) => (losses[a].length - losses[b].length) + losses[a][losses[a].length - 1] - losses[b][losses[b].length - 1])
 
     for (let index = 0; index < sortedNames.length; index++) {
         let name = sortedNames[index]

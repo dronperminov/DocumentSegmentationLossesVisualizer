@@ -9,11 +9,17 @@ function Constant(value) {
 function Add(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
+
+    this.grad1 = 1
+    this.grad2 = 1
 }
 
 function Sub(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
+
+    this.grad1 = 1
+    this.grad2 = -1
 }
 
 function Mult(arg1, arg2) {
@@ -21,7 +27,7 @@ function Mult(arg1, arg2) {
     this.arg2 = arg2
 }
 
-function Div(arg1, arg2) {
+function Div(arg1, arg2, no_grad = false) {
     this.arg1 = arg1
     this.arg2 = arg2
 }
@@ -49,6 +55,15 @@ function Atan(arg) {
     this.arg = arg
 }
 
+function Power(arg, n) {
+    this.arg = arg
+    this.n = n
+}
+
+function Log(arg) {
+    this.arg = arg
+}
+
 function BackwardOne(value) {
     this.arg.Backward(this.grad * value)
 }
@@ -56,6 +71,10 @@ function BackwardOne(value) {
 function BackwardTwo(value) {
     this.arg1.Backward(this.grad1 * value)
     this.arg2.Backward(this.grad2 * value)
+}
+
+Variable.prototype.SetValue = function(value) {
+    this.value = value
 }
 
 Variable.prototype.Forward = function() {
@@ -67,6 +86,10 @@ Variable.prototype.Backward = function(value) {
     this.grad += value
 }
 
+Constant.prototype.SetValue = function(value) {
+    this.value = value
+}
+
 Constant.prototype.Forward = function() {
     return this.value
 }
@@ -76,14 +99,10 @@ Constant.prototype.Backward = function(value) {
 }
 
 Add.prototype.Forward = function() {
-    this.grad1 = 1
-    this.grad2 = 1
     return this.arg1.Forward() + this.arg2.Forward()
 }
 
 Sub.prototype.Forward = function() {
-    this.grad1 = 1
-    this.grad2 = -1
     return this.arg1.Forward() - this.arg2.Forward()
 }
 
@@ -163,6 +182,20 @@ Atan.prototype.Forward = function() {
     return value
 }
 
+Power.prototype.Forward = function() {
+    let value = this.arg.Forward()
+
+    this.grad = this.n * Math.pow(value, this.n - 1)
+    return Math.pow(value, this.n)
+}
+
+Log.prototype.Forward = function() {
+    let value = this.arg.Forward()
+    this.grad = 1 / value
+
+    return Math.log(value)
+}
+
 Add.prototype.Backward = BackwardTwo
 Sub.prototype.Backward = BackwardTwo
 Mult.prototype.Backward = BackwardTwo
@@ -172,3 +205,5 @@ Min.prototype.Backward = BackwardTwo
 Clamp.prototype.Backward = BackwardOne
 Square.prototype.Backward = BackwardOne
 Atan.prototype.Backward = BackwardOne
+Power.prototype.Backward = BackwardOne
+Log.prototype.Backward = BackwardOne

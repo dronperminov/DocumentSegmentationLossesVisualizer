@@ -174,55 +174,68 @@ BoundingBox.prototype.Intersection = function(bbox) {
     if (x2 <= x1 || y2 <= y1)
         return null
 
-    return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2, this.iw, this.ih)
+    return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2, this.iw, this.ih, true)
+}
+
+BoundingBox.prototype.Convex = function(bbox) {
+    let bbox1 = this.GetNormalParams()
+    let bbox2 = bbox.GetNormalParams()
+
+    let x1 = Math.min(bbox1.x1, bbox2.x1)
+    let x2 = Math.max(bbox1.x2, bbox2.x2)
+
+    let y1 = Math.min(bbox1.y1, bbox2.y1)
+    let y2 = Math.max(bbox1.y2, bbox2.y2)
+
+    if (x2 <= x1 || y2 <= y1)
+        return null
+
+    return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2, this.iw, this.ih, true)
 }
 
 BoundingBox.prototype.CountByThreshold = function(pixels, threshold = 120, isLess = true) {
     let count = 0
 
-    for (let i = 0; i < pixels.length; i += 4) {
-        let r = pixels[i + 0]
-        let g = pixels[i + 1]
-        let b = pixels[i + 2]
-        let brightness = (r + g + b) / 3 // stupid, i know
+    for (let x = this.x1; x < this.x2; x++) {
+        for (let y = this.y1; y < this.y2; y++) {
+            let i = (y * this.iw + x) * 4
 
-        if (brightness < threshold && isLess)
-            count++
-        else if (brightness >= threshold && !isLess)
-            count++
+            let r = pixels[i + 0]
+            let g = pixels[i + 1]
+            let b = pixels[i + 2]
+            let brightness = (r + g + b) / 3 // stupid, i know
+
+            if (brightness < threshold && isLess)
+                count++
+            else if (brightness >= threshold && !isLess)
+                count++
+        }
     }
 
     return count
 }
 
-BoundingBox.prototype.GetInfo = function(bbox, ctx, threshold) {
+BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
     let realArea = this.GetArea()
-    let realPixels = this.GetPixels(ctx)
-    let realBlackCount = this.CountByThreshold(realPixels, threshold, true)
-    let realWhiteCount = this.CountByThreshold(realPixels, threshold, false)
+    let realBlackCount = this.CountByThreshold(data, threshold, true)
+    let realWhiteCount = this.CountByThreshold(data, threshold, false)
 
     let predArea = bbox.GetArea()
-    let predPixels = bbox.GetPixels(ctx)
-    let predBlackCount = this.CountByThreshold(predPixels, threshold, true)
-    let predWhiteCount = this.CountByThreshold(predPixels, threshold, false)
+    let predBlackCount = bbox.CountByThreshold(data, threshold, true)
+    let predWhiteCount = bbox.CountByThreshold(data, threshold, false)
+
+    let intersectionArea = 0
+    let intersectionBlackCount = 0
+    let intersectionWhiteCount = 0
 
     let intersection = this.Intersection(bbox)
     let haveIntersection = intersection != null && intersection.GetArea() > 1
 
-    if (!haveIntersection) {
-        return {
-            realArea, predArea,
-            realBlackCount, predBlackCount,
-            realWhiteCount, predWhiteCount,
-            haveIntersection,
-            intersection
-        }
+    if (haveIntersection) {
+        intersectionArea = intersection.GetArea()
+        intersectionBlackCount = intersection.CountByThreshold(data, threshold, true)
+        intersectionWhiteCount = intersection.CountByThreshold(data, threshold, false)
     }
-
-    let intersectionArea = intersection.GetArea()
-    let intersectionPixels = intersection.GetPixels(ctx)
-    let intersectionBlackCount = this.CountByThreshold(intersectionPixels, threshold, true)
-    let intersectionWhiteCount = this.CountByThreshold(intersectionPixels, threshold, false)
 
     let unionArea = realArea + predArea - intersectionArea
     let unionBlackCount = realBlackCount + predBlackCount - intersectionBlackCount
@@ -245,11 +258,11 @@ BoundingBox.prototype.GetInfo = function(bbox, ctx, threshold) {
         unionWhiteCount,
 
         haveIntersection,
-        intersection
+        intersection,
     }
 }
 
-BoundingBox.prototype.IoU = function(bbox, DIoU = false, CIoU = false) {
+BoundingBox.prototype.IoU = function(bbox, iouType = 'IoU') {
     let intersection = this.Intersection(bbox)
 
     let area1 = this.GetArea()
@@ -259,27 +272,32 @@ BoundingBox.prototype.IoU = function(bbox, DIoU = false, CIoU = false) {
 
     let iou = intersectionArea / unionArea
 
-    if (DIoU || CIoU) {
+    if (iouType == 'DIoU' || iouType == 'CIoU' || iouType == 'GIoU') {
         let cw = Math.max(this.x2, bbox.x2) - Math.min(this.x1, bbox.x1)
         let ch = Math.max(this.y2, bbox.y2) - Math.min(this.y1, bbox.y1)
-        let c2 = cw*cw + ch*ch
-        let rho2 = (Math.pow(this.x1 + this.x2 - bbox.x1 - bbox.x2, 2) + Math.pow(this.y1 + this.y2 - bbox.y1 - bbox.y2, 2)) / 4
 
-        if (CIoU) {
-            let w1 = Math.abs(this.x2 - this.x1)
-            let h1 = Math.abs(this.y2 - this.y1)
+        if (iouType == 'CIoU' || iouType == 'DIoU') {
+            let c2 = cw*cw + ch*ch
+            let rho2 = (Math.pow(this.x1 + this.x2 - bbox.x1 - bbox.x2, 2) + Math.pow(this.y1 + this.y2 - bbox.y1 - bbox.y2, 2)) / 4
 
-            let w2 = Math.abs(bbox.x2 - bbox.x1)
-            let h2 = Math.abs(bbox.y2 - bbox.y1)
+            if (iouType == 'CIoU') {
+                let w1 = Math.abs(this.x2 - this.x1)
+                let h1 = Math.abs(this.y2 - this.y1)
 
-            let v = 4 / (Math.PI * Math.PI) * Math.pow(Math.atan(w2 / h2) - Math.atan(w1 / h1), 2)
-            let alpha = v / (v - iou + 1 + 1e-8)
+                let w2 = Math.abs(bbox.x2 - bbox.x1)
+                let h2 = Math.abs(bbox.y2 - bbox.y1)
 
-            return iou - (rho2 / c2 + v * alpha)
-        }
-        else {
+                let v = 4 / (Math.PI * Math.PI) * Math.pow(Math.atan(w2 / h2) - Math.atan(w1 / h1), 2)
+                let alpha = v / (v - iou + 1 + 1e-8)
+
+                return iou - (rho2 / c2 + v * alpha)
+            }
+
             return iou - rho2 / c2
         }
+
+        let c_area = cw * ch + 1e-8
+        return iou - (c_area - unionArea) / c_area
     }
 
     return iou

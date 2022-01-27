@@ -6,8 +6,7 @@ function Visualizer(canvasId, imagesSrc) {
     this.metrics = document.getElementById('metrics')
     this.controls = document.getElementById('image-controls')
     this.thresholdBox = document.getElementById('threshold-controls')
-    this.diouBox = document.getElementById('diou-box')
-    this.ciouBox = document.getElementById('ciou-box')
+    this.iouBox = document.getElementById('iou-box')
     this.visualizeAreasBox = document.getElementById('visualize-loss-areas')
     this.optimizeBtn = document.getElementById('optimize-btn')
 
@@ -54,9 +53,7 @@ Visualizer.prototype.InitControls = function() {
     this.threshold = +this.thresholdBox.value
     this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; this.needUpdate = true })
 
-    this.diouBox.addEventListener('change', () => { this.needUpdate = true })
-    this.ciouBox.addEventListener('change', () => { this.needUpdate = true })
-
+    this.iouBox.addEventListener('change', () => { this.needUpdate = true })
     this.optimizeBtn.addEventListener('click', () => this.Optimize())
 }
 
@@ -158,11 +155,13 @@ Visualizer.prototype.RestoreBboxes = function(data) {
 }
 
 Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
-    let iou_clear = real.IoU(pred, false, false)
-    let iou = real.IoU(pred, this.diouBox.checked, this.ciouBox.checked)
-    let piou = real.PIoU(pred, this.ctx, this.threshold)
-    let bwiou = real.BWIoU(pred, this.ctx, this.threshold)
-    let weighted_bwiou = real.WeightedBWIoU(pred, this.ctx, this.threshold)
+    let data = this.ctx.getImageData(0, 0, this.imageWidth, this.imageHeight).data
+
+    let iou_clear = real.IoU(pred)
+    let iou = real.IoU(pred, this.iouBox.value)
+    let piou = real.PIoU(pred, data, this.threshold)
+    let bwiou = real.BWIoU(pred, data, this.threshold)
+    let weighted_bwiou = real.WeightedBWIoU(pred, data, this.threshold)
 
     if (isScale)
         iou = 1
@@ -210,84 +209,6 @@ Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false)
     throw "unknown loss '" + name + '"'
 }
 
-Visualizer.prototype.EvaluateLoss = function(realBox, predBox, lossName) {
-    // real nodes
-    let real_x1 = new Constant(realBox.nx1)
-    let real_x2 = new Constant(realBox.nx2)
-
-    let real_y1 = new Constant(realBox.ny1)
-    let real_y2 = new Constant(realBox.ny2)
-
-    let real_width = new Sub(real_x2, real_x1)
-    let real_height = new Sub(real_y2, real_y1)
-    let real_area = new Mult(real_width, real_height)
-
-    // pred nodes
-    let pred_x1 = new Variable(predBox.nx1)
-    let pred_x2 = new Variable(predBox.nx2)
-
-    let pred_y1 = new Variable(predBox.ny1)
-    let pred_y2 = new Variable(predBox.ny2)
-
-    let pred_width = new Sub(pred_x2, pred_x1)
-    let pred_height = new Sub(pred_y2, pred_y1)
-    let pred_area = new Mult(pred_width, pred_height)
-
-    // int nodes
-    let int_x1 = new Max(real_x1, pred_x1)
-    let int_x2 = new Min(real_x2, pred_x2)
-
-    let int_y1 = new Max(real_y1, pred_y1)
-    let int_y2 = new Min(real_y2, pred_y2)
-
-    let int_width = new Clamp(new Sub(int_x2, int_x1), 0)
-    let int_height = new Clamp(new Sub(int_y2, int_y1), 0)
-    let int_area = new Mult(int_width, int_height)
-
-    let union_area = new Sub(new Add(real_area, pred_area), int_area)
-    let iou = new Div(int_area, union_area)
-
-    let scale = this.GetLossByName(realBox, predBox, lossName, true)
-
-    iou = new Mult(iou, new Constant(scale))
-
-    if (this.diouBox.checked || this.ciouBox.checked) {
-        let cw = new Sub(new Max(pred_x2, real_x2), new Min(pred_x1, real_x1))
-        let ch = new Sub(new Max(pred_y2, real_y2), new Min(pred_y1, real_y1))
-        let c2 = new Add(new Square(cw), new Square(ch))
-
-        let arg1 = new Sub(new Add(real_x1, real_x2), new Add(pred_x1, pred_x2))
-        let arg2 = new Sub(new Add(real_y1, real_y2), new Add(pred_y1, pred_y2))
-
-        let rho2 = new Div(new Add(new Square(arg1), new Square(arg2)), new Constant(4))
-
-        if (this.ciouBox.checked) {
-            let a1 = new Atan(new Div(real_width, real_height))
-            let a2 = new Atan(new Div(pred_width, pred_height))
-            let a = new Sub(a2, a1)
-
-            let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(a))
-            let alpha = new Div(v, new Add(new Sub(v, iou), new Constant(1 + 1e-8)))
-
-            iou = new Sub(iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
-        }
-        else {
-            iou = new Sub(iou, new Div(rho2, c2))
-        }
-    }
-
-    let L = iou.Forward()
-    iou.Backward(1)
-
-    return {
-        loss: 1 - L,
-        dx1: -pred_x1.grad,
-        dx2: -pred_x2.grad,
-        dy1: -pred_y1.grad,
-        dy2: -pred_y2.grad,
-    }
-}
-
 Visualizer.prototype.RemoveOptimizedBoxes = function() {
     let cleared = []
 
@@ -323,9 +244,8 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
     for (let name of names)
         lossValues[name] = []
 
-    let totalMaxLoss = 0
-
-    this.OptimizeStep(predBoxes, names, lossValues, totalMaxLoss, alpha)
+    this.iou = new GraphIoU()
+    this.OptimizeStep(predBoxes, names, lossValues, 0, alpha)
 }
 
 Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
@@ -344,7 +264,7 @@ Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
     return imax
 }
 
-Visualizer.prototype.OptimizeStep = function(predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0) {
+Visualizer.prototype.OptimizeStep = function(predBoxes, names, lossValues, totalMaxLoss, alpha, steps = 0, time = 0) {
     let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
 
     let losses = []
@@ -353,11 +273,14 @@ Visualizer.prototype.OptimizeStep = function(predBoxes, names, lossValues, total
 
     this.Clear()
 
+    let t0 = performance.now()
     for (let i = 0; i < names.length; i++) {
         let index = this.GetOptimalRealBox(predBoxes[i], realBoxes)
-        losses[i] = this.EvaluateLoss(realBoxes[index], predBoxes[i], names[i])
+        let scale = this.GetLossByName(realBoxes[index], predBoxes[i], names[i], true)
+        losses[i] = this.iou.Evaluate(realBoxes[index], predBoxes[i], scale, this.iouBox.value)
         maxLoss = Math.max(maxLoss, losses[i].loss)
     }
+    let t1 = performance.now()
 
     totalMaxLoss = Math.max(totalMaxLoss, maxLoss)
     this.needUpdate = true
@@ -391,7 +314,7 @@ Visualizer.prototype.OptimizeStep = function(predBoxes, names, lossValues, total
         predBoxes[i].y2 = Math.round(predBoxes[i].ny2 * this.imageHeight)
     }
 
-    console.log('')
+    console.log('time:', time / (steps + 1), '\n')
 
-    requestAnimationFrame(() => this.OptimizeStep(predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1))
+    requestAnimationFrame(() => this.OptimizeStep(predBoxes, names, lossValues, totalMaxLoss, alpha, steps + 1, time + t1 - t0))
 }

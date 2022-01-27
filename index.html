@@ -7,7 +7,7 @@
 </head>
 <body oncontextmenu="return false;">
     <div class="visualizer">
-        <div class="visualizer-image">
+        <div class="visualizer-image" oncontextmenu="return false;">
             <canvas id="canvas">
         </div>
 
@@ -15,8 +15,14 @@
             <div class="controls">
                 <label>Изображение: <select id="image-controls"></select></label><br>
                 <label>Порог тёмных пикселей: <input type="number" step="1" min="1" max="255" value="128" id="threshold-controls"></label><br>
-                <label><input type="checkbox" id="diou-box">DIoU</label>
-                <label><input type="checkbox" id="ciou-box">CIoU</label><br>
+                <label>Тип IoU:
+                    <select id="iou-box">
+                        <option value="IoU" selected>IoU</option>
+                        <option value="DIoU">DIoU</option>
+                        <option value="CIoU">CIoU</option>
+                        <option value="GIoU">GIoU</option>
+                    </select><br>
+                </label>
                 <label>Рисовать области для:
                     <select id="visualize-loss-areas">
                         <option value='none' selected>не визуализировать</option>
@@ -44,6 +50,7 @@
     <script src="js/events.js"></script>
     <script src="js/draw.js"></script>
     <script src="js/graph.js"></script>
+    <script src="js/graph_iou.js"></script>
 
     <script>
         let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im23.jpg', 'images/im24.jpg', 'images/im54.jpg', 'images/im94.jpg']
