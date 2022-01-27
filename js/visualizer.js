@@ -156,12 +156,14 @@ Visualizer.prototype.RestoreBboxes = function(data) {
 
 Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
     let data = this.ctx.getImageData(0, 0, this.imageWidth, this.imageHeight).data
+    let info = real.GetInfo(pred, data, this.threshold)
 
     let iou_clear = real.IoU(pred)
     let iou = real.IoU(pred, this.iouBox.value)
-    let piou = real.PIoU(pred, data, this.threshold)
-    let bwiou = real.BWIoU(pred, data, this.threshold)
-    let weighted_bwiou = real.WeightedBWIoU(pred, data, this.threshold)
+
+    let piou = PIoU(info)
+    let bwiou = BWIoU(info)
+    let weighted_bwiou = WeightedBWIoU(info)
 
     if (isScale)
         iou = 1
