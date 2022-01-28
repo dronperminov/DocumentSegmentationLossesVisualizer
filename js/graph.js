@@ -64,6 +64,10 @@ function Log(arg) {
     this.arg = arg
 }
 
+function NoGrad(arg) {
+    this.arg = arg
+}
+
 function BackwardOne(value) {
     this.arg.Backward(this.grad * value)
 }
@@ -194,6 +198,14 @@ Log.prototype.Forward = function() {
     this.grad = 1 / value
 
     return Math.log(value)
+}
+
+NoGrad.prototype.Forward = function() {
+    return this.arg.Forward()
+}
+
+NoGrad.prototype.Backward = function(value) {
+
 }
 
 Add.prototype.Backward = BackwardTwo

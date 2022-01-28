@@ -30,44 +30,33 @@ Visualizer.prototype.Round = function(v) {
     return Math.round(v * 10000) / 10000
 }
 
-Visualizer.prototype.DrawLoss = function() {
-    let real = this.GetBoxesByColor(BBOX_REAL_COLOR)
-    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)
-
-    this.metrics.innerHTML = ''
-
-    if (real.length != 1 || pred.length != 1)
-        return
-
-    real = real[0]
-    pred = pred[0]
-
+Visualizer.prototype.MakeBoxesTable = function(real, pred) {
     let data = this.ctx.getImageData(0, 0, this.imageWidth, this.imageHeight).data
     let info = real.GetInfo(pred, data, this.threshold)
 
     let tableBoxes = `
-            <tr><th>Bbox</th><th>Coord</th><th>Area</th><th>Black (■)</th><th>White (□)</th></tr>
-            <tr>
-                <td style="color: hsl(120, 70%, 50%)"><b>real</b></td>
-                <td>${real.ToString()}</td>
-                <td>${info.realArea}</td>
-                <td>${this.Round(info.realBlackCount / info.realArea)} (${info.realBlackCount})</td>
-                <td>${this.Round(info.realWhiteCount / info.realArea)} (${info.realWhiteCount})</td>
-            </tr>
-            <tr>
-                <td style="color: hsl(0, 70%, 50%)"><b>pred</b></td>
-                <td>${pred.ToString()}</td>
-                <td>${info.predArea}</td>
-                <td>${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})</td>
-                <td>${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})</td>
-            </tr>
-            <tr>
-                <td style="color: hsl(60, 70%, 50%)"><b>convex</b></td>
-                <td>${info.convex.ToString()}</td>
-                <td>${info.convexArea}</td>
-                <td>${this.Round(info.convexBlackCount / info.convexArea)} (${info.convexBlackCount})</td>
-                <td>${this.Round(info.convexWhiteCount / info.convexArea)} (${info.convexWhiteCount})</td>
-            </tr>`
+        <tr><th>Bbox</th><th>Coord</th><th>Area</th><th>Black (■)</th><th>White (□)</th></tr>
+        <tr>
+            <td style="color: hsl(${BBOX_REAL_COLOR}, 70%, 50%)"><b>real</b></td>
+            <td>${real.ToString()}</td>
+            <td>${info.realArea}</td>
+            <td>${this.Round(info.realBlackCount / info.realArea)} (${info.realBlackCount})</td>
+            <td>${this.Round(info.realWhiteCount / info.realArea)} (${info.realWhiteCount})</td>
+        </tr>
+        <tr>
+            <td style="color: hsl(${BBOX_PRED_COLOR}, 70%, 50%)"><b>pred</b></td>
+            <td>${pred.ToString()}</td>
+            <td>${info.predArea}</td>
+            <td>${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})</td>
+            <td>${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})</td>
+        </tr>
+        <tr>
+            <td style="color: hsl(60, 70%, 50%)"><b>convex</b></td>
+            <td>${info.convex.ToString()}</td>
+            <td>${info.convexArea}</td>
+            <td>${this.Round(info.convexBlackCount / info.convexArea)} (${info.convexBlackCount})</td>
+            <td>${this.Round(info.convexWhiteCount / info.convexArea)} (${info.convexWhiteCount})</td>
+        </tr>`
 
     let tableIntersection = ''
 
@@ -90,51 +79,67 @@ Visualizer.prototype.DrawLoss = function() {
     }
 
     this.metrics.innerHTML += `<table>${tableBoxes}${tableIntersection}</table><hr>`
+}
 
+Visualizer.prototype.MakeIouTable = function(real, pred) {
+    let ious = this.iouTypes.map((iouType) => real.IoU(pred, iouType))
+
+    let header = `<tr><th>Тип</th>${this.iouTypes.map((iouType) => '<th>' + iouType + '</th>').join('')}</tr>`
+    let direct = `<tr><td>L</td>${ious.map((iou) => '<td><span class="box" style="background: ' + this.LossToColor(iou) + '"></span> ' + this.Round(iou) + '</td>').join('')}</tr>`
+    let inverse = `<tr><td>1 - L</td>${ious.map((iou) => '<td><span class="box" style="background: ' + this.LossToColor(1 - iou) + '"></span> ' + this.Round(1 -iou) + '</td>').join('')}</tr>`
+
+    this.metrics.innerHTML += '<i>Значения различных видов IoU</i>'
+    this.metrics.innerHTML += `<table>${header}${direct}${inverse}</table>`
+}
+
+Visualizer.prototype.MakeLossTable = function(real, pred) {
     let losses = this.GetLosses(real, pred)
+    let baseLosses = ['PIoU', 'BWIoU', 'Weighted BWIoU']
 
-    this.metrics.innerHTML += '<i>Функции потерь:</i><br>'
-    this.metrics.innerHTML += `<table>
-        <tr>
-            <th>Loss</th>
-            ${this.iouBox.value == 'IoU' ? '' : "<th>IoU</th><th>1 - IoU</th>"}
-            <th>${this.iouBox.value}</th>
-            <th>1 - ${this.iouBox.value}</th>
-            <th>PIoU</th>
-            <th>Convex PIoU</th>
-            <th>BWIoU</th>
-            <th>BWIoU<sub>weighted</sub></th>
-        </tr>
-        <tr>
-            <td>L</td>
-            ${this.iouBox.value == 'IoU' ? '' : '<td rowspan="3"><span class="box" style="background: ' + this.LossToColor(losses.iou_clear) + '"></span> ' + this.Round(losses.iou_clear) + '</td>'}
-            ${this.iouBox.value == 'IoU' ? '' : '<td rowspan="3"><span class="box" style="background: ' + this.LossToColor(1 - losses.iou_clear) + '"></span> ' + this.Round(1 - losses.iou_clear) + '</td>'}
+    let modifications = [
+        { name: 'L', value: function(loss) { return loss }, need: () => true },
+        { name: `L × ${this.iouBox.value}`, value: function(loss) { return loss * losses.iou }, need: () => true },
+        { name: `(L + 1 - IoU) × ${this.iouBox.value}<br>(champion)`, value: function(loss) { return (loss + 1 - losses.iou_clear) * losses.iou }, need: () => true },
+        { name: `(L + 1 - ${this.iouBox.value}) × ${this.iouBox.value}<br>(champion 2)`, value: function(loss) { return (loss + 1 - losses.iou) * losses.iou }, need: () => this.iouBox.value != 'IoU' },
+    ]
 
-            <td rowspan="3"><span class="box" style="background: ${this.LossToColor(losses.iou)}"></span> ${this.Round(losses.iou)}</td>
-            <td rowspan="3"><span class="box" style="background: ${this.LossToColor(1 - losses.iou)}"></span> ${this.Round(1 - losses.iou)}</td>
+    let header = `<tr><th>Тип</th>${baseLosses.map((loss) => '<th>' + loss + '</th>').join('')}</tr>`
+    let values = []
 
-            <td><span class="box" style="background: ${this.LossToColor(losses.piou)}"></span> ${this.Round(losses.piou)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.convex_piou)}"></span> ${this.Round(losses.convex_piou)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.bwiou)}"></span> ${this.Round(losses.bwiou)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou)}"></span> ${this.Round(losses.weighted_bwiou)}</td>
-        </tr>
+    for (let mod of modifications) {
+        if (!mod.need())
+            continue
 
-        <tr>
-            <td>L × ${this.iouBox.value}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.piou_iou)}"></span> ${this.Round(losses.piou_iou)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.convex_piou_iou)}"></span> ${this.Round(losses.convex_piou_iou)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_iou)}"></span> ${this.Round(losses.bwiou_iou)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_iou)}"></span> ${this.Round(losses.weighted_bwiou_iou)}</td>
-        </tr>
+        let row = `<tr><td>${mod.name}</td>`
 
-        <tr>
-            <td>(L + 1 - IoU) × ${this.iouBox.value}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.piou_champion)}"></span> ${this.Round(losses.piou_champion)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.convex_piou_champion)}"></span> ${this.Round(losses.convex_piou_champion)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.bwiou_champion)}"></span> ${this.Round(losses.bwiou_champion)}</td>
-            <td><span class="box" style="background: ${this.LossToColor(losses.weighted_bwiou_champion)}"></span> ${this.Round(losses.weighted_bwiou_champion)}</td>
-        </tr>
-    </table>`
+        for (let loss of baseLosses) {
+            let name = loss.toLowerCase().replace(/ /gi, '_')
+            let value = mod.value(losses[name])
+            row += `<td><span class="box" style="background: ${this.LossToColor(value)}"></span> ${this.Round(value)}</td>`
+        }
+
+        values.push(row + `</tr>`)
+    }
+
+    this.metrics.innerHTML += '<hr><i>Функции потерь:</i><br>'
+    this.metrics.innerHTML += `<table>${header}${values.join('\n')}</table>`
+}
+
+Visualizer.prototype.DrawLoss = function() {
+    let real = this.GetBoxesByColor(BBOX_REAL_COLOR)
+    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)
+
+    this.metrics.innerHTML = ''
+
+    if (real.length != 1 || pred.length != 1)
+        return
+
+    real = real[0]
+    pred = pred[0]
+
+    this.MakeBoxesTable(real, pred)
+    this.MakeIouTable(real, pred)
+    this.MakeLossTable(real, pred)
 }
 
 Visualizer.prototype.Map = function(x, in_min, in_max, out_min, out_max) {
@@ -225,7 +230,7 @@ Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
         this.lossesCtx.fillText(`${name} = ${this.Round(loss[loss.length - 1])} (${loss.length} steps)`, width - padding, padding + index * 15)
 
         this.lossesCtx.lineWidth = 2
-        this.lossesCtx.strokeStyle = `hsl(${LOSS_COLOR_START + index * LOSS_COLOR_STEP}, 50%, 70%)`
+        this.lossesCtx.strokeStyle = `hsla(${LOSS_COLOR_START + index * LOSS_COLOR_STEP}, 50%, 70%, 70%)`
         this.lossesCtx.beginPath()
 
         for (let i = 0; i < steps; i++) {

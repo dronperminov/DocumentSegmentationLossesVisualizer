@@ -1,4 +1,4 @@
-function Visualizer(canvasId, imagesSrc) {
+function Visualizer(canvasId, imagesSrc, iouTypes) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
 
@@ -14,6 +14,9 @@ function Visualizer(canvasId, imagesSrc) {
     this.lossesCtx = this.lossesCanvas.getContext('2d')
     this.lossesCanvas.width = 500
     this.lossesCanvas.height = 400
+
+    this.iouTypes = iouTypes
+    this.iou = new GraphIoU()
 
     this.InitControls()
     this.Reset()
@@ -37,13 +40,19 @@ Visualizer.prototype.LoadImage = function() {
     return image
 }
 
+Visualizer.prototype.AddOption = function(select, value) {
+    let option = document.createElement('option')
+    option.value = value
+    option.innerText = value
+    select.appendChild(option)
+}
+
 Visualizer.prototype.InitControls = function() {
-    for (let i = 0; i < this.imagesSrc.length; i++) {
-        let option = document.createElement('option')
-        option.value = this.imagesSrc[i]
-        option.innerText = this.imagesSrc[i]
-        this.controls.appendChild(option)
-    }
+    for (let i = 0; i < this.imagesSrc.length; i++)
+        this.AddOption(this.controls, this.imagesSrc[i])
+
+    for (let iouType of this.iouTypes)
+        this.AddOption(this.iouBox, iouType)
 
     this.controls.addEventListener('change', () => this.ChangeImage(this.controls.value))
 
@@ -165,22 +174,28 @@ Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
     let bwiou = BWIoU(info)
     let weighted_bwiou = WeightedBWIoU(info)
 
-    if (isScale)
-        iou = 1
+    let scale = isScale ? 1 : iou
 
-    let piou_iou = iou * piou
-    let bwiou_iou = iou * bwiou
-    let weighted_bwiou_iou = iou * weighted_bwiou
+    let piou_iou = scale * piou
+    let bwiou_iou = scale * bwiou
+    let weighted_bwiou_iou = scale * weighted_bwiou
 
-    let piou_champion = iou * (piou + 1 - iou_clear)
-    let bwiou_champion = iou * (bwiou + 1 - iou_clear)
-    let weighted_bwiou_champion = iou * (weighted_bwiou + 1 - iou_clear)
+    let piou_champion = scale * (piou + 1 - iou_clear)
+    let bwiou_champion = scale * (bwiou + 1 - iou_clear)
+    let weighted_bwiou_champion = scale * (weighted_bwiou + 1 - iou_clear)
+
+    let piou_champion2 = scale * (piou + 1 - iou)
+    let bwiou_champion2 = scale * (bwiou + 1 - iou)
+    let weighted_bwiou_champion2 = scale * (weighted_bwiou + 1 - iou)
+
+    iou = scale
 
     return {
         iou, iou_clear,
         piou, bwiou, weighted_bwiou,
-        piou_iou, bwiou_iou, weighted_bwiou_iou,
-        piou_champion, bwiou_champion, weighted_bwiou_champion
+        piou_iou,  bwiou_iou, weighted_bwiou_iou,
+        piou_champion, bwiou_champion, weighted_bwiou_champion,
+        piou_champion2, bwiou_champion2, weighted_bwiou_champion2
     }
 }
 
@@ -208,6 +223,15 @@ Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false)
     if (name == 'Weighted BWIoU (champion)')
         return losses.weighted_bwiou_champion
 
+    if (name == 'PIoU (champion 2)')
+        return losses.piou_champion2
+
+    if (name == 'BWIoU (champion 2)')
+        return losses.bwiou_champion2
+
+    if (name == 'Weighted BWIoU (champion 2)')
+        return losses.weighted_bwiou_champion2
+
     throw "unknown loss '" + name + '"'
 }
 
@@ -229,7 +253,17 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
     let names = []
 
     if (this.visualizeLoss == 'none') {
-        names = ['IoU', 'PIoU', 'BWIoU', 'Weighted BWIoU', 'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)']
+        names = [
+            'IoU',
+            'PIoU', 'BWIoU', 'Weighted BWIoU',
+            'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
+        ]
+
+        if (this.iouBox.value != 'IoU') {
+            names.push('PIoU (champion 2)')
+            names.push('BWIoU (champion 2)')
+            names.push('Weighted BWIoU (champion 2)')
+        }
 
         for (let i = 0; i < names.length; i++) {
             let box = predBox.Copy(names[i], LOSS_COLOR_START + i * LOSS_COLOR_STEP)
@@ -246,7 +280,6 @@ Visualizer.prototype.Optimize = function(alpha = 0.0005) {
     for (let name of names)
         lossValues[name] = []
 
-    this.iou = new GraphIoU()
     this.OptimizeStep(predBoxes, names, lossValues, 0, alpha)
 }
 
@@ -285,7 +318,6 @@ Visualizer.prototype.OptimizeStep = function(predBoxes, names, lossValues, total
     let t1 = performance.now()
 
     totalMaxLoss = Math.max(totalMaxLoss, maxLoss)
-    this.needUpdate = true
     this.Draw()
     this.PlotLosses(lossValues, names, steps, totalMaxLoss)
 

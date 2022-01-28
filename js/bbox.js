@@ -345,7 +345,7 @@ BoundingBox.prototype.IoU = function(bbox, iouType = 'IoU') {
         let Lso = 2 - so
         let Lcd = d_lt / d_diag + d_rb / d_diag
 
-        return 1 - Lso - 0.2 * Lcd
+        return so - 1 - 0.2 * Lcd
     }
 
     return iou

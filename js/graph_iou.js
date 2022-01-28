@@ -55,7 +55,7 @@ function GraphIoU() {
     let a2 = new Atan(new Div(pred_width, pred_height))
 
     let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(a2, a1)))
-    let alpha = new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8)))
+    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
 
     let c_area = new Add(new Mult(cw, ch), new Constant(1e-8))
 
@@ -77,7 +77,6 @@ function GraphIoU() {
     let wmax = new Sub(convex_x2, convex_x1)
     let hmax = new Sub(convex_y2, convex_y1)
 
-    // let so = new Mult(new Add(new Div(wmin, wmax), new Div(hmin, hmax)), this.scale)
     let so = new Add(new Div(wmin, wmax), new Div(hmin, hmax))
 
     let dx1 = new Square(new Sub(this.real_x1, this.pred_x1))
@@ -95,7 +94,7 @@ function GraphIoU() {
     let Lso = new Sub(new Constant(2), so)
     let Lcd = new Add(new Div(d_lt, d_diag), new Div(d_rb, d_diag))
 
-    this.sca = new Sub(this.scale, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
+    this.sca = new Mult(this.scale, new Sub(so, new Add(new Constant(1), new Mult(new Constant(0.2), Lcd))))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
