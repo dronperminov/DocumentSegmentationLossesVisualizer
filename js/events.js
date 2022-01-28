@@ -43,9 +43,6 @@ Visualizer.prototype.KeyDown = function(e) {
 }
 
 Visualizer.prototype.CanAddBbox = function(color) {
-    if (color == BBOX_PRED_COLOR)
-        return this.GetBoxesByColor(color).length == 0
-
     return true
 }
 

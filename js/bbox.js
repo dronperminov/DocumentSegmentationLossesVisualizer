@@ -228,11 +228,6 @@ BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
     let intersectionBlackCount = 0
     let intersectionWhiteCount = 0
 
-    let convex = this.Convex(bbox)
-    let convexArea = convex.GetArea()
-    let convexBlackCount = convex.CountByThreshold(data, threshold, true)
-    let convexWhiteCount = convex.CountByThreshold(data, threshold, false)
-
     let intersection = this.Intersection(bbox)
     let haveIntersection = intersection != null && intersection.GetArea() > 1
 
@@ -251,23 +246,19 @@ BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
         predArea,
         intersectionArea,
         unionArea,
-        convexArea,
 
         realBlackCount,
         predBlackCount,
         intersectionBlackCount,
         unionBlackCount,
-        convexBlackCount,
 
         realWhiteCount,
         predWhiteCount,
         intersectionWhiteCount,
         unionWhiteCount,
-        convexWhiteCount,
 
         haveIntersection,
         intersection,
-        convex
     }
 }
 

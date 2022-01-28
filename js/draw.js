@@ -49,13 +49,6 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
             <td>${info.predArea}</td>
             <td>${this.Round(info.predBlackCount / info.predArea)} (${info.predBlackCount})</td>
             <td>${this.Round(info.predWhiteCount / info.predArea)} (${info.predWhiteCount})</td>
-        </tr>
-        <tr>
-            <td style="color: hsl(60, 70%, 50%)"><b>convex</b></td>
-            <td>${info.convex.ToString()}</td>
-            <td>${info.convexArea}</td>
-            <td>${this.Round(info.convexBlackCount / info.convexArea)} (${info.convexBlackCount})</td>
-            <td>${this.Round(info.convexWhiteCount / info.convexArea)} (${info.convexWhiteCount})</td>
         </tr>`
 
     let tableIntersection = ''
@@ -197,7 +190,7 @@ Visualizer.prototype.Draw = function() {
     }
 }
 
-Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
+Visualizer.prototype.PlotLosses = function(data, steps, maxLoss) {
     let padding = 1
     let width = this.lossesCanvas.width
     let height = this.lossesCanvas.height
@@ -217,11 +210,12 @@ Visualizer.prototype.PlotLosses = function(losses, names, steps, maxLoss) {
     let ymin = height - padding
     let ymax = padding
 
-    let sortedNames = names.slice().sort((a, b) => (losses[a].length - losses[b].length) + losses[a][losses[a].length - 1] - losses[b][losses[b].length - 1])
+    let names = Object.keys(data)
+    let sortedNames = names.slice().sort((a, b) => (data[a].lossValues.length - data[b].lossValues.length) + data[a].lossValues[data[a].lossValues.length - 1] - data[b].lossValues[data[b].lossValues.length - 1])
 
     for (let index = 0; index < sortedNames.length; index++) {
         let name = sortedNames[index]
-        let loss = losses[name]
+        let loss = data[name].lossValues
 
         this.lossesCtx.font = '15px serif'
         this.lossesCtx.textAlign = 'right'
