@@ -219,17 +219,19 @@ Visualizer.prototype.PlotLosses = function(data, steps, maxLoss) {
     let sortedNames = names.slice().sort((a, b) => (data[a].lossValues.length - data[b].lossValues.length) + data[a].lossValues[data[a].lossValues.length - 1] - data[b].lossValues[data[b].lossValues.length - 1])
 
     for (let index = 0; index < sortedNames.length; index++) {
-        let name = sortedNames[index]
-        let loss = data[name].lossValues
+        let key = sortedNames[index]
+        let color = data[key].color
+        let iouType = data[key].iouType
+        let loss = data[key].lossValues
 
         this.lossesCtx.font = '15px serif'
         this.lossesCtx.textAlign = 'right'
         this.lossesCtx.textBaseline = 'top'
-        this.lossesCtx.fillStyle = `hsl(${LOSS_COLOR_START + index * LOSS_COLOR_STEP}, 50%, 70%)`
-        this.lossesCtx.fillText(`${name} = ${this.Round(loss[loss.length - 1])} (${loss.length} steps)`, width - padding, padding + index * 15)
+        this.lossesCtx.fillStyle = `hsl(${color}, 50%, 70%)`
+        this.lossesCtx.fillText(`${key} = ${this.Round(loss[loss.length - 1])} (${loss.length} steps)`, width - padding, padding + index * 15)
 
         this.lossesCtx.lineWidth = 2
-        this.lossesCtx.strokeStyle = `hsla(${LOSS_COLOR_START + index * LOSS_COLOR_STEP}, 50%, 70%, 70%)`
+        this.lossesCtx.strokeStyle = `hsla(${color}, 50%, 70%, 70%)`
         this.lossesCtx.beginPath()
 
         for (let i = 0; i < steps; i++) {

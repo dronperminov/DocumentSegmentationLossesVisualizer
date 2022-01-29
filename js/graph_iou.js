@@ -49,7 +49,7 @@ function GraphIoU() {
     let arg1 = new Sub(new Add(this.real_x1, this.real_x2), new Add(this.pred_x1, this.pred_x2))
     let arg2 = new Sub(new Add(this.real_y1, this.real_y2), new Add(this.pred_y1, this.pred_y2))
 
-    let rho2 = new Div(new Add(new Square(arg1), new Square(arg2)), new Constant(4))
+    let rho2 = new Div(new Add(new Square(arg1), new Square(arg2)), FOUR)
 
     let a1 = new Atan(new Div(real_width, real_height))
     let a2 = new Atan(new Div(pred_width, pred_height))
@@ -57,7 +57,7 @@ function GraphIoU() {
     let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(a2, a1)))
     let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
 
-    let c_area = new Add(new Mult(cw, ch), new Constant(1e-8))
+    let c_area = new Add(new Mult(cw, ch), EPS)
 
     // loss function graphs
     this.ciou = new Sub(this.iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
@@ -91,10 +91,10 @@ function GraphIoU() {
     let dcy = new Square(new Sub(convex_y2, convex_y1))
     let d_diag = new Add(dcx, dcy)
 
-    let Lso = new Sub(new Constant(2), so)
+    let Lso = new Sub(TWO, so)
     let Lcd = new Add(new Div(d_lt, d_diag), new Div(d_rb, d_diag))
 
-    this.sca = new Mult(this.scale, new Sub(so, new Add(new Constant(1), new Mult(new Constant(0.2), Lcd))))
+    this.sca = new Mult(this.scale, new Sub(so, new Add(ONE, new Mult(new Constant(0.2), Lcd))))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {

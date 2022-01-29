@@ -194,7 +194,7 @@ Power.prototype.Forward = function() {
 }
 
 Log.prototype.Forward = function() {
-    let value = this.arg.Forward()
+    let value = this.arg.Forward() + 1e-8
     this.grad = 1 / value
 
     return Math.log(value)
@@ -219,3 +219,8 @@ Square.prototype.Backward = BackwardOne
 Atan.prototype.Backward = BackwardOne
 Power.prototype.Backward = BackwardOne
 Log.prototype.Backward = BackwardOne
+
+const ONE = new Constant(1)
+const TWO = new Constant(2)
+const FOUR = new Constant(4)
+const EPS = new Constant(1e-8)
