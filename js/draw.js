@@ -76,13 +76,18 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
 
 Visualizer.prototype.MakeIouTable = function(real, pred) {
     let ious = this.iouTypes.map((iouType) => real.IoU(pred, iouType))
+    let losses = this.iouTypes.map((iouType) => this.iou.Evaluate(real, pred, 1, iouType))
 
     let header = `<tr><th>Тип</th>${this.iouTypes.map((iouType) => '<th>' + iouType + '</th>').join('')}</tr>`
     let direct = `<tr><td>L</td>${ious.map((iou) => '<td><span class="box" style="background: ' + this.LossToColor(iou) + '"></span> ' + this.Round(iou) + '</td>').join('')}</tr>`
     let inverse = `<tr><td>1 - L</td>${ious.map((iou) => '<td><span class="box" style="background: ' + this.LossToColor(1 - iou) + '"></span> ' + this.Round(1 -iou) + '</td>').join('')}</tr>`
+    let dx1 = `<tr><td>∂L/∂x<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx1) + '</td>').join('')}</tr>`
+    let dy1 = `<tr><td>∂L/∂y<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dy1) + '</td>').join('')}</tr>`
+    let dx2 = `<tr><td>∂L/∂x<sub>2</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx2) + '</td>').join('')}</tr>`
+    let dy2 = `<tr><td>∂L/∂y<sub>2</sub></td>${losses.map((v) => '<td>' + this.Round(v.dy2) + '</td>').join('')}</tr>`
 
     this.metrics.innerHTML += '<i>Значения различных видов IoU</i>'
-    this.metrics.innerHTML += `<table>${header}${direct}${inverse}</table>`
+    this.metrics.innerHTML += `<table>${header}${direct}${inverse}${dx1}${dy1}${dx2}${dy2}</table>`
 }
 
 Visualizer.prototype.MakeLossTable = function(real, pred) {
