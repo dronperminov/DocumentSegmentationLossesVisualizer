@@ -14,6 +14,24 @@ Visualizer.prototype.UpdateCursor = function(bbox, x, y) {
     }
 }
 
+Visualizer.prototype.DrawLine = function(x1, y1, x2, y2, text, color, t = 0.5) {
+    this.ctx.strokeStyle = color
+    this.ctx.fillStyle = color
+    this.ctx.beginPath()
+    this.ctx.moveTo(x1, y1)
+    this.ctx.lineTo(x2, y2)
+    this.ctx.stroke()
+
+    this.ctx.save()
+    this.ctx.translate(x1 + t * (x2 - x1), y1 + t * (y2 - y1))
+    this.ctx.rotate(Math.atan2(y2 - y1, x2 - x1))
+    this.ctx.font = '14px serif'
+    this.ctx.textAlign = "center"
+    this.ctx.textBaseline = "bottom"
+    this.ctx.fillText(text, 0, 0)
+    this.ctx.restore()
+}
+
 Visualizer.prototype.DrawBboxes = function() {
     for (let bbox of this.bboxes) {
         if (bbox != this.activeBox) {
@@ -24,6 +42,47 @@ Visualizer.prototype.DrawBboxes = function() {
             this.UpdateCursor(bbox, this.currPoint.x, this.currPoint.y)
         }
     }
+
+    if (this.activeBox != null) {
+        this.activeBox.Draw(this.ctx, true, this.visualizeLoss != 'none')
+    }
+}
+
+Visualizer.prototype.DrawBboxesInfo = function() {
+    if (this.bboxes.length != 2)
+        return
+
+    let reals = this.GetBoxesByColor(BBOX_REAL_COLOR)
+    let preds = this.GetBoxesByColor(BBOX_PRED_COLOR)
+
+    if (reals.length != 1 || preds.length != 1)
+        return
+
+    let real = reals[0]
+    let pred = preds[0]
+
+    let convex = real.Convex(pred)
+    let int = real.Intersection(pred, true)
+
+    let real_cx = (real.x1 + real.x2) / 2
+    let real_cy = (real.y1 + real.y2) / 2
+
+    let pred_cx = (pred.x1 + pred.x2) / 2
+    let pred_cy = (pred.y1 + pred.y2) / 2
+
+    let center_dx = Math.pow(real.nx1 + real.nx2 - pred.nx1 - pred.nx2, 2)
+    let center_dy = Math.pow(real.ny1 + real.ny2 - pred.ny1 - pred.ny2, 2)
+    let center_dst = (center_dx + center_dy) / 4
+
+    this.DrawLine(convex.x1, convex.y2, convex.x2, convex.y1, `${this.Round(Math.pow(convex.nx2 - convex.nx1, 2) + Math.pow(convex.ny2 - convex.ny1, 2))}`, 'hsl(240, 50%, 40%)')
+    this.DrawLine(convex.x1, convex.y1, convex.x1, convex.y2, `${this.Round(convex.ny2 - convex.ny1)}`, 'hsl(240, 50%, 40%)')
+    this.DrawLine(convex.x1, convex.y1, convex.x2, convex.y1, `${this.Round(convex.nx2 - convex.nx1)}`, 'hsl(240, 50%, 40%)')
+
+    this.DrawLine(int.x1, int.y2, int.x2, int.y1, `${this.Round(Math.pow(int.nx2 - int.nx1, 2) + Math.pow(int.ny2 - int.ny1, 2))}`, 'hsl(300, 50%, 40%)')
+    this.DrawLine(int.x1, int.y1, int.x2, int.y1, `${this.Round(int.nx2 - int.nx1)}`, 'hsl(300, 50%, 40%)')
+    this.DrawLine(int.x1, int.y1, int.x1, int.y2, `${this.Round(int.ny2 -int.ny1)}`, 'hsl(300, 50%, 40%)')
+
+    this.DrawLine(real_cx, real_cy, pred_cx, pred_cy, `${this.Round(center_dst)}`, 'hsl(160, 50%, 40%)')
 }
 
 Visualizer.prototype.Round = function(v) {
@@ -75,12 +134,11 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakeIouTable = function(real, pred) {
-    let ious = this.iouTypes.map((iouType) => real.IoU(pred, iouType))
     let losses = this.iouTypes.map((iouType) => this.iou.Evaluate(real, pred, 1, iouType))
 
     let header = `<tr><th>Тип</th>${this.iouTypes.map((iouType) => '<th>' + iouType + '</th>').join('')}</tr>`
-    let direct = `<tr><td>L</td>${ious.map((iou) => '<td><span class="box" style="background: ' + this.LossToColor(iou) + '"></span> ' + this.Round(iou) + '</td>').join('')}</tr>`
-    let inverse = `<tr><td>1 - L</td>${ious.map((iou) => '<td><span class="box" style="background: ' + this.LossToColor(1 - iou) + '"></span> ' + this.Round(1 -iou) + '</td>').join('')}</tr>`
+    let direct = `<tr><td>L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(1 - v.loss) + '"></span> ' + this.Round(1 - v.loss) + '</td>').join('')}</tr>`
+    let inverse = `<tr><td>1 - L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(v.loss) + '"></span> ' + this.Round(v.loss) + '</td>').join('')}</tr>`
     let dx1 = `<tr><td>∂L/∂x<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx1) + '</td>').join('')}</tr>`
     let dy1 = `<tr><td>∂L/∂y<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dy1) + '</td>').join('')}</tr>`
     let dx2 = `<tr><td>∂L/∂x<sub>2</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx2) + '</td>').join('')}</tr>`
@@ -188,10 +246,7 @@ Visualizer.prototype.Draw = function() {
         this.VisualizeAreas()
 
     this.DrawBboxes()
-
-    if (this.activeBox != null) {
-        this.activeBox.Draw(this.ctx, true, this.visualizeLoss != 'none')
-    }
+    this.DrawBboxesInfo()
 }
 
 Visualizer.prototype.PlotValues = function(data, values, minValue, maxValue,padding, color, index, steps, key) {
@@ -264,7 +319,7 @@ Visualizer.prototype.PlotLosses = function(data, steps, maxLoss, maxGrad) {
         let loss = data[key].lossValues
         let grads = data[key].gradValues
 
-        this.PlotValues(lossesCtx, loss, 0, Math.max(1, maxLoss), padding, color, index, steps, key)
+        this.PlotValues(lossesCtx, loss, 0, maxLoss, padding, color, index, steps, key)
 
         for (let i = 0; i < gradNames.length; i++)
             this.PlotValues(gradCtxs[i], grads[gradNames[i]], -maxGrad, maxGrad, padding, color, index, steps, key)

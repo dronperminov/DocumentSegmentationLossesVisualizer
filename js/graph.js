@@ -294,5 +294,6 @@ Sign.prototype.Backward = BackwardOne
 
 const ONE = new Constant(1)
 const TWO = new Constant(2)
+const THREE = new Constant(3)
 const FOUR = new Constant(4)
 const EPS = new Constant(1e-8)

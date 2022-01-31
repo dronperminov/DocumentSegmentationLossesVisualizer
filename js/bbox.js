@@ -161,7 +161,7 @@ BoundingBox.prototype.GetArea = function() {
     return Math.abs(this.x2 - this.x1) * Math.abs(this.y2 - this.y1)
 }
 
-BoundingBox.prototype.Intersection = function(bbox) {
+BoundingBox.prototype.Intersection = function(bbox, mayInvalid = false) {
     let bbox1 = this.GetNormalParams()
     let bbox2 = bbox.GetNormalParams()
 
@@ -171,7 +171,7 @@ BoundingBox.prototype.Intersection = function(bbox) {
     let y1 = Math.max(bbox1.y1, bbox2.y1)
     let y2 = Math.min(bbox1.y2, bbox2.y2)
 
-    if (x2 <= x1 || y2 <= y1)
+    if ((x2 <= x1 || y2 <= y1) && !mayInvalid)
         return null
 
     return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2, this.iw, this.ih, true)
@@ -336,7 +336,7 @@ BoundingBox.prototype.IoU = function(bbox, iouType = 'IoU') {
         let Lso = 2 - so
         let Lcd = d_lt / d_diag + d_rb / d_diag
 
-        return so - 1 - 0.2 * Lcd
+        return 1 - (Lso + 0.2 * Lcd)
     }
 
     return iou

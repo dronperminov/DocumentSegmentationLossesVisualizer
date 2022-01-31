@@ -37,22 +37,23 @@
                 <hr>
             </div>
             <div id="metrics"></div>
-            <div class="plots">
-                <div class="plots-cell">
-                    <canvas id="losses-box"></canvas>
+            <div id="plot-box">
+                <div class="plots">
+                    <div class="plots-cell">
+                        <canvas id="losses-box"></canvas>
+                    </div>
+
+                    <div class="plots-cell">
+                        <div id="losses-table"></div>
+                    </div>
                 </div>
 
-                <div class="plots-cell">
-                    <div id="losses-table"></div>
+                <div class="grads">
+                    <div class="grads-cell">∂L/∂x1<canvas id="dx1-box"></canvas></div>
+                    <div class="grads-cell">∂L/∂y1<canvas id="dy1-box"></canvas></div>
+                    <div class="grads-cell">∂L/∂x2<canvas id="dx2-box"></canvas></div>
+                    <div class="grads-cell">∂L/∂y2<canvas id="dy2-box"></canvas></div>
                 </div>
-            </div>
-
-            <div class="grads">
-                <div class="grads-cell">∂L/∂x1<canvas id="dx1-box"></canvas></div>
-                <div class="grads-cell">∂L/∂y1<canvas id="dy1-box"></canvas></div>
-                <div class="grads-cell">∂L/∂x2<canvas id="dx2-box"></canvas></div>
-                <div class="grads-cell">∂L/∂y2<canvas id="dy2-box"></canvas></div>
-            </div>
             </div>
         </div>
     </div>
@@ -68,7 +69,7 @@
 
     <script>
         let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im23.jpg', 'images/im24.jpg', 'images/im54.jpg', 'images/im94.jpg']
-        let iouTypes = ['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA']
+        let iouTypes = ['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA', 'My']
         let visualizer = new Visualizer('canvas', images, iouTypes)
 
         setInterval(() => visualizer.Draw(), 10)

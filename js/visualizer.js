@@ -12,8 +12,8 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
     this.optimizeBtn = document.getElementById('optimize-btn')
     this.optimizeIoUBtn = document.getElementById('optimize-iou-btn')
 
+    this.plotBox = document.getElementById('plot-box')
     this.lossesCanvas = document.getElementById('losses-box')
-
     this.gradCanvases = {
         'dx1': document.getElementById('dx1-box'),
         'dy1': document.getElementById('dy1-box'),
@@ -70,6 +70,8 @@ Visualizer.prototype.InitControls = function() {
 
     this.optimizeBtn.addEventListener('click', () => this.Optimize())
     this.optimizeIoUBtn.addEventListener('click', () => this.Optimize(true))
+
+    this.plotBox.style.display = 'none'
 }
 
 Visualizer.prototype.ChangeVisualizeLoss = function() {
@@ -299,7 +301,7 @@ Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
         }
 
         for (let i = 0; i < names.length; i++) {
-            let color = LOSS_COLOR_START + i * LOSS_COLOR_STEP
+            let color = this.Map(i, 0, names.length - 1, LOSS_COLOR_START, LOSS_COLOR_END)
 
             data[names[i]] = { pred: [], lossName: lossNames[i], iouType: iouTypes[i], color: color }
 
@@ -325,6 +327,7 @@ Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
         }
     }
 
+    this.plotBox.style.display = ''
     this.OptimizeStep(data, alpha)
 }
 
@@ -368,7 +371,6 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
             let loss = this.iou.Evaluate(realBoxes[index], predBoxes[j], scale, iouType)
 
             losses[key][j] = loss
-            maxLoss = Math.max(maxLoss, loss.loss)
 
             avg_loss += loss.loss
 
@@ -377,6 +379,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
         }
 
         avg_loss /= predBoxes.length
+        maxLoss = Math.max(maxLoss, avg_loss)
 
         if (avg_loss >= threshold) {
             data[key].lossValues.push(avg_loss)

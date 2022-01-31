@@ -39,6 +39,7 @@ function GraphIoU() {
     let int_width = new Sub(int_x2, int_x1)
     let int_height = new Sub(int_y2, int_y1)
     let int_area = new Mult(new Clamp(int_width, 0), new Clamp(int_height, 0))
+    let int_diag = new Add(new Square(int_width), new Square(int_height))
 
     let union_area = new Sub(new Add(real_area, pred_area), int_area)
 
@@ -72,8 +73,11 @@ function GraphIoU() {
     let Lso = new Sub(TWO, so)
     let Lcd = new Div(new Add(d_lt, d_rb), convex_diag)
 
+    let so2 = new Sum(new Div(int_width, convex_width), new Div(int_height, convex_height), new Div(int_diag, convex_diag))
+    let Lso2 = new Sub(THREE, so2)
+
     this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
-    this.my = new Sub(ONE, new Sum(Lso, new Mult(new Constant(0.2), Lcd)))
+    this.my = new Sub(ONE, new Sum(Lso2, new Mult(new Constant(0.2), Lcd)))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
@@ -100,6 +104,9 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     }
     else if (iouType == 'SCA') {
         loss = this.sca
+    }
+    else if (iouType == 'My') {
+        loss = this.my
     }
 
     let L = loss.Forward()
