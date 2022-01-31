@@ -195,25 +195,65 @@ Visualizer.prototype.Draw = function() {
     }
 }
 
-Visualizer.prototype.PlotLosses = function(data, steps, maxLoss) {
-    let padding = 1
-    let width = this.lossesCanvas.width
-    let height = this.lossesCanvas.height
+Visualizer.prototype.PlotValues = function(data, values, minValue, maxValue,padding, color, index, steps, key) {
+    data.ctx.font = '15px serif'
+    data.ctx.textAlign = 'right'
+    data.ctx.textBaseline = 'top'
+    data.ctx.fillStyle = `hsl(${color}, 50%, 70%)`
+    data.ctx.fillText(`${key} = ${this.Round(values[values.length - 1])} (${values.length} steps)`, data.width - padding, padding + index * 15)
 
-    this.lossesCtx.clearRect(0, 0, width, height)
-    this.lossesCtx.strokeStyle = '#000'
-    this.lossesCtx.lineWidth = 1
-    this.lossesCtx.beginPath()
-    this.lossesCtx.moveTo(padding, padding)
-    this.lossesCtx.lineTo(padding, height - padding)
-    this.lossesCtx.lineTo(width - padding, height - padding)
-    this.lossesCtx.stroke()
+    data.ctx.lineWidth = 2
+    data.ctx.strokeStyle = `hsla(${color}, 50%, 70%, 70%)`
+    data.ctx.beginPath()
 
     let xmin = padding
-    let xmax = width - padding
+    let xmax = data.width - padding
 
-    let ymin = height - padding
+    let ymin = data.height - padding
     let ymax = padding
+
+    for (let i = 0; i < values.length; i++) {
+        let x = steps > 0 ? xmin + (xmax - xmin) * i / steps : (xmin + xmax) / 2
+        let y = ymin + (values[i] - minValue) / (maxValue - minValue) * (ymax - ymin)
+
+        if (i == 0)
+            data.ctx.moveTo(x, y)
+        else
+            data.ctx.lineTo(x, y)
+    }
+
+    data.ctx.stroke()
+}
+
+Visualizer.prototype.InitCanvas = function(canvas, padding, isCenterZero = false) {
+    let width = canvas.clientWidth
+    let height = canvas.clientHeight
+    let y0 = isCenterZero ? height / 2 : height - padding
+
+    canvas.width = width
+    canvas.height = height
+
+    let ctx = canvas.getContext('2d')
+
+    ctx.clearRect(0, 0, width, height)
+    ctx.strokeStyle = '#000'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(padding, padding)
+    ctx.lineTo(padding, height - padding)
+    ctx.lineTo(padding, y0)
+    ctx.lineTo(width - padding, y0)
+    ctx.stroke()
+
+    return {ctx, width, height }
+}
+
+Visualizer.prototype.PlotLosses = function(data, steps, maxLoss, maxGrad) {
+    let padding = 10
+
+    let gradNames = ['dx1', 'dy1', 'dx2', 'dy2']
+    let lossesCtx = this.InitCanvas(this.lossesCanvas, padding)
+    let gradCtxs = gradNames.map((gradName) => this.InitCanvas(this.gradCanvases[gradName], padding, true))
 
     let names = Object.keys(data)
     let sortedNames = names.slice().sort((a, b) => (data[a].lossValues.length - data[b].lossValues.length) + data[a].lossValues[data[a].lossValues.length - 1] - data[b].lossValues[data[b].lossValues.length - 1])
@@ -223,27 +263,11 @@ Visualizer.prototype.PlotLosses = function(data, steps, maxLoss) {
         let color = data[key].color
         let iouType = data[key].iouType
         let loss = data[key].lossValues
+        let grads = data[key].gradValues
 
-        this.lossesCtx.font = '15px serif'
-        this.lossesCtx.textAlign = 'right'
-        this.lossesCtx.textBaseline = 'top'
-        this.lossesCtx.fillStyle = `hsl(${color}, 50%, 70%)`
-        this.lossesCtx.fillText(`${key} = ${this.Round(loss[loss.length - 1])} (${loss.length} steps)`, width - padding, padding + index * 15)
+        this.PlotValues(lossesCtx, loss, 0, Math.max(1, maxLoss), padding, color, index, steps, key)
 
-        this.lossesCtx.lineWidth = 2
-        this.lossesCtx.strokeStyle = `hsla(${color}, 50%, 70%, 70%)`
-        this.lossesCtx.beginPath()
-
-        for (let i = 0; i < steps; i++) {
-            let x = steps > 0 ? xmin + (xmax - xmin) * i / steps : (xmax + xmin) / 2
-            let y = ymin + loss[i] / Math.max(1, maxLoss) * (ymax - ymin)
-
-            if (i == 0)
-                this.lossesCtx.moveTo(x, y)
-            else
-                this.lossesCtx.lineTo(x, y)
-        }
-
-        this.lossesCtx.stroke()
+        for (let i = 0; i < gradNames.length; i++)
+            this.PlotValues(gradCtxs[i], grads[gradNames[i]], -maxGrad, maxGrad, padding, color, index, steps, key)
     }
 }

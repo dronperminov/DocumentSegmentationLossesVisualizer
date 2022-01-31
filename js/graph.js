@@ -22,6 +22,10 @@ function Sub(arg1, arg2) {
     this.grad2 = -1
 }
 
+function Sum() {
+    this.args = arguments
+}
+
 function Mult(arg1, arg2) {
     this.arg1 = arg1
     this.arg2 = arg2
@@ -62,6 +66,15 @@ function Power(arg, n) {
 
 function Log(arg) {
     this.arg = arg
+}
+
+function Abs(arg) {
+    this.arg = arg
+}
+
+function Sign(arg) {
+    this.arg = arg
+    this.grad = 0
 }
 
 function NoGrad(arg) {
@@ -108,6 +121,20 @@ Add.prototype.Forward = function() {
 
 Sub.prototype.Forward = function() {
     return this.arg1.Forward() - this.arg2.Forward()
+}
+
+Sum.prototype.Forward = function() {
+    let sum = 0;
+
+    for (let arg of this.args)
+        sum += arg.Forward()
+
+    return sum
+}
+
+Sum.prototype.Backward = function(value) {
+    for (let arg of this.args)
+        arg.Backward(value)
 }
 
 Mult.prototype.Forward = function() {
@@ -200,6 +227,16 @@ Log.prototype.Forward = function() {
     return Math.log(value)
 }
 
+Abs.prototype.Forward = function() {
+    let value = this.arg.Forward()
+    this.grad = Math.sign(value)
+    return Math.abs(value)
+}
+
+Sign.prototype.Forward = function() {
+    return Math.sign(this.arg.Forward())
+}
+
 NoGrad.prototype.Forward = function() {
     return this.arg.Forward()
 }
@@ -219,6 +256,8 @@ Square.prototype.Backward = BackwardOne
 Atan.prototype.Backward = BackwardOne
 Power.prototype.Backward = BackwardOne
 Log.prototype.Backward = BackwardOne
+Abs.prototype.Backward = BackwardOne
+Sign.prototype.Backward = BackwardOne
 
 const ONE = new Constant(1)
 const TWO = new Constant(2)

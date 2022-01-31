@@ -37,8 +37,23 @@
                 <hr>
             </div>
             <div id="metrics"></div>
-            <br>
-            <canvas id="losses-box"></canvas>
+            <div class="plots">
+                <div class="plots-cell">
+                    <canvas id="losses-box"></canvas>
+                </div>
+
+                <div class="plots-cell">
+                    <div id="losses-table"></div>
+                </div>
+            </div>
+
+            <div class="grads">
+                <div class="grads-cell">∂L/∂x1<canvas id="dx1-box"></canvas></div>
+                <div class="grads-cell">∂L/∂y1<canvas id="dy1-box"></canvas></div>
+                <div class="grads-cell">∂L/∂x2<canvas id="dx2-box"></canvas></div>
+                <div class="grads-cell">∂L/∂y2<canvas id="dy2-box"></canvas></div>
+            </div>
+            </div>
         </div>
     </div>
 

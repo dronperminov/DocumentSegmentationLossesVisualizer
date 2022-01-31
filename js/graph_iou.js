@@ -13,8 +13,6 @@ function GraphIoU() {
     this.pred_y1 = new Variable()
     this.pred_y2 = new Variable()
 
-    this.scale = new Constant()
-
     // intersection nodes
     let int_x1 = new Max(this.real_x1, this.pred_x1)
     let int_x2 = new Min(this.real_x2, this.pred_x2)
@@ -38,8 +36,7 @@ function GraphIoU() {
     let int_area = new Mult(int_width, int_height)
 
     let union_area = new Sub(new Add(real_area, pred_area), int_area)
-
-    this.iou = new Mult(new Div(int_area, union_area), this.scale)
+    let iou = new Div(int_area, union_area)
 
     // DIoU and CIoU calculation
     let cw = new Sub(new Max(this.pred_x2, this.real_x2), new Min(this.pred_x1, this.real_x1))
@@ -55,14 +52,15 @@ function GraphIoU() {
     let a2 = new Atan(new Div(pred_width, pred_height))
 
     let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(a2, a1)))
-    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
+    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, iou), new Constant(1 + 1e-8))))
 
     let c_area = new Add(new Mult(cw, ch), EPS)
 
     // loss function graphs
-    this.ciou = new Sub(this.iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
-    this.diou = new Sub(this.iou, new Div(rho2, c2))
-    this.giou = new Sub(this.iou, new Div(new Sub(c_area, union_area), c_area))
+    this.iou = iou
+    this.ciou = new Sub(iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
+    this.diou = new Sub(iou, new Div(rho2, c2))
+    this.giou = new Sub(iou, new Div(new Sub(c_area, union_area), c_area))
 
     // convex nodes
     let convex_x1 = new Min(this.real_x1, this.pred_x1)
@@ -94,7 +92,8 @@ function GraphIoU() {
     let Lso = new Sub(TWO, so)
     let Lcd = new Add(new Div(d_lt, d_diag), new Div(d_rb, d_diag))
 
-    this.sca = new Mult(this.scale, new Sub(so, new Add(ONE, new Mult(new Constant(0.2), Lcd))))
+    this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
+    this.my = new Sub(ONE, new Sum(Lso, new Mult(new Constant(0.2), Lcd)))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
@@ -107,8 +106,6 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     this.pred_y1.SetValue(predBox.ny1)
     this.pred_x2.SetValue(predBox.nx2)
     this.pred_y2.SetValue(predBox.ny2)
-
-    this.scale.SetValue(scale)
 
     let loss = this.iou
 
@@ -126,7 +123,7 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     }
 
     let L = loss.Forward()
-    loss.Backward(1)
+    loss.Backward(scale)
 
     return {
         loss: 1 - L,

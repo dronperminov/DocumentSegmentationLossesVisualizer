@@ -13,9 +13,13 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
     this.optimizeIoUBtn = document.getElementById('optimize-iou-btn')
 
     this.lossesCanvas = document.getElementById('losses-box')
-    this.lossesCtx = this.lossesCanvas.getContext('2d')
-    this.lossesCanvas.width = 500
-    this.lossesCanvas.height = 400
+
+    this.gradCanvases = {
+        'dx1': document.getElementById('dx1-box'),
+        'dy1': document.getElementById('dy1-box'),
+        'dx2': document.getElementById('dx2-box'),
+        'dy2': document.getElementById('dy2-box'),
+    }
 
     this.iouTypes = iouTypes
     this.iou = new GraphIoU()
@@ -255,14 +259,14 @@ Visualizer.prototype.Random = function(a, b) {
     return Math.floor(a + Math.random() * (b - a))
 }
 
-Visualizer.prototype.RandomBox = function() {
+Visualizer.prototype.RandomBox = function(color) {
     let x1 = this.Random(0, this.imageWidth - 20)
     let y1 = this.Random(0, this.imageHeight - 20)
 
     let x2 = this.Random(x1 + 5, this.imageWidth)
     let y2 = this.Random(y1 + 5, this.imageHeight)
 
-    return new BoundingBox(x1, y1, x2, y2, BBOX_PRED_COLOR, this.imageWidth, this.imageHeight, true)
+    return new BoundingBox(x1, y1, x2, y2, color, this.imageWidth, this.imageHeight, true)
 }
 
 Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
@@ -274,7 +278,7 @@ Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
     let randomBoxes = []
 
     for (let i = 0; i < +this.randomCountBox.value; i++)
-        randomBoxes.push(this.RandomBox())
+        randomBoxes.push(this.RandomBox(BBOX_PRED_COLOR))
 
     if (this.visualizeLoss == 'none') {
         let names = []
@@ -306,7 +310,7 @@ Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
         for (let i = 0; i < names.length; i++) {
             let color = LOSS_COLOR_START + i * LOSS_COLOR_STEP
 
-            data[names[i]] = { pred: [], lossValues: [], lossName: lossNames[i], iouType: iouTypes[i], color: color }
+            data[names[i]] = { pred: [], lossName: lossNames[i], iouType: iouTypes[i], color: color }
 
             for (let box of predBoxes) {
                 box = box.Copy(names[i], color)
@@ -316,18 +320,21 @@ Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
         }
     }
     else {
-        data[`${this.visualizeLoss} (${this.iouBox.value})`] = { pred: predBoxes, lossValues: [], lossName: this.visualizeLoss, iouType: this.iouBox.value, color: BBOX_PRED_COLOR }
+        data[`${this.visualizeLoss} (${this.iouBox.value})`] = { pred: predBoxes, lossName: this.visualizeLoss, iouType: this.iouBox.value, color: BBOX_PRED_COLOR }
     }
 
-    for (let name of Object.keys(data)) {
+    for (let key of Object.keys(data)) {
+        data[key].lossValues = []
+        data[key].gradValues = { 'dx1': [], 'dy1': [], 'dx2': [], 'dy2': [] }
+
         for (let box of randomBoxes) {
-            box = box.Copy(name, data[name].color)
-            data[name].pred.push(box)
+            box = box.Copy(key, data[key].color)
+            data[key].pred.push(box)
             this.bboxes.push(box)
         }
     }
 
-    this.OptimizeStep(data, 0, alpha)
+    this.OptimizeStep(data, alpha)
 }
 
 Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
@@ -346,7 +353,7 @@ Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
     return imax
 }
 
-Visualizer.prototype.OptimizeStep = function(data, totalMaxLoss, alpha, steps = 0, evalTime = 0, drawTime = 0, updateTime = 0) {
+Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, totalMaxGrad = 0, steps = 0, evalTime = 0, drawTime = 0, updateTime = 0) {
     let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
 
     let losses = {}
@@ -361,20 +368,34 @@ Visualizer.prototype.OptimizeStep = function(data, totalMaxLoss, alpha, steps = 
         let predBoxes = data[key].pred
         let iouType = data[key].iouType
         let avg_loss = 0
+        let avg_grads = { 'dx1': 0, 'dy1': 0, 'dx2': 0, 'dy2': 0 }
         losses[key] = []
 
         for (let j = 0; j < predBoxes.length; j++) {
             let index = this.GetOptimalRealBox(predBoxes[j], realBoxes)
             let scale = this.GetLossByName(realBoxes[index], predBoxes[j], data[key].lossName, true)
-            losses[key][j] = this.iou.Evaluate(realBoxes[index], predBoxes[j], scale, iouType)
-            maxLoss = Math.max(maxLoss, losses[key][j].loss)
-            avg_loss += losses[key][j].loss
+            let loss = this.iou.Evaluate(realBoxes[index], predBoxes[j], scale, iouType)
+
+            losses[key][j] = loss
+            maxLoss = Math.max(maxLoss, loss.loss)
+
+            avg_loss += loss.loss
+
+            for (let gradName of Object.keys(avg_grads))
+                avg_grads[gradName] += loss[gradName]
         }
 
         avg_loss /= predBoxes.length
 
         if (avg_loss >= threshold) {
             data[key].lossValues.push(avg_loss)
+
+            for (let gradName of Object.keys(avg_grads)) {
+                let avg_grad = avg_grads[gradName] / predBoxes.length
+                data[key].gradValues[gradName].push(avg_grad)
+                totalMaxGrad = Math.max(totalMaxGrad, Math.abs(avg_grad))
+            }
+
             isStop = false
         }
     }
@@ -384,7 +405,7 @@ Visualizer.prototype.OptimizeStep = function(data, totalMaxLoss, alpha, steps = 
     totalMaxLoss = Math.max(totalMaxLoss, maxLoss)
 
     this.Draw()
-    this.PlotLosses(data, steps, totalMaxLoss)
+    this.PlotLosses(data, steps, totalMaxLoss, totalMaxGrad)
 
     if (isStop)
         return
@@ -407,6 +428,18 @@ Visualizer.prototype.OptimizeStep = function(data, totalMaxLoss, alpha, steps = 
             predBoxes[j].ny1 -= alpha * losses[key][j].dy1 * scale
             predBoxes[j].ny2 -= alpha * losses[key][j].dy2 * scale
 
+            if (predBoxes[j].nx1 > predBoxes[j].nx2) {
+                let tmp = predBoxes[j].nx1
+                predBoxes[j].nx1 = predBoxes[j].nx2
+                predBoxes[j].nx2 = tmp
+            }
+
+            if (predBoxes[j].ny1 > predBoxes[j].ny2) {
+                let tmp = predBoxes[j].ny1
+                predBoxes[j].ny1 = predBoxes[j].ny2
+                predBoxes[j].ny2 = tmp
+            }
+
             predBoxes[j].x1 = Math.round(predBoxes[j].nx1 * this.imageWidth)
             predBoxes[j].y1 = Math.round(predBoxes[j].ny1 * this.imageHeight)
             predBoxes[j].x2 = Math.round(predBoxes[j].nx2 * this.imageWidth)
@@ -417,5 +450,5 @@ Visualizer.prototype.OptimizeStep = function(data, totalMaxLoss, alpha, steps = 
 
     console.log(`${steps}. eval: ${this.Round(evalTime / (steps + 1))}, draw: ${this.Round(drawTime / (steps + 1))}, update: ${this.Round(updateTime / (steps + 1))}`)
 
-    requestAnimationFrame(() => this.OptimizeStep(data, totalMaxLoss, alpha, steps + 1, evalTime + t1 - t0, drawTime + t2 - t1, updateTime + t3 - t2))
+    requestAnimationFrame(() => this.OptimizeStep(data, alpha, totalMaxLoss, totalMaxGrad, steps + 1, evalTime + t1 - t0, drawTime + t2 - t1, updateTime + t3 - t2))
 }
