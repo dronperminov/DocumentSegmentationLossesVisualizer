@@ -2,8 +2,6 @@ Visualizer.prototype.KeyDown = function(e) {
     if (this.activeBox == null)
         return
 
-    this.needUpdate = true
-
     if (e.code == 'ArrowLeft') {
         this.activeBox.Move(-BBOX_MOVE_STEP, 0)
     }
@@ -55,7 +53,6 @@ Visualizer.prototype.MouseDown = function(e) {
     let y = e.offsetY
 
     this.isPressed = true
-    this.needUpdate = true
     this.prevPoint.x = x
     this.prevPoint.y = y
     this.activeBox = this.GetBboxAt(x, y)

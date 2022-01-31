@@ -124,10 +124,13 @@ Visualizer.prototype.MakeLossTable = function(real, pred) {
 }
 
 Visualizer.prototype.DrawLoss = function() {
+    this.metrics.innerHTML = ''
+
+    if (this.bboxes.length != 2)
+        return
+
     let real = this.GetBoxesByColor(BBOX_REAL_COLOR)
     let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)
-
-    this.metrics.innerHTML = ''
 
     if (real.length != 1 || pred.length != 1)
         return
@@ -179,11 +182,7 @@ Visualizer.prototype.VisualizeAreas = function() {
 
 Visualizer.prototype.Draw = function() {
     this.Clear()
-
-    if (this.needUpdate) {
-        this.needUpdate = false
-        this.DrawLoss()
-    }
+    this.DrawLoss()
 
     if (this.CanVisualizeAreas() && this.visualizeLoss != 'none')
         this.VisualizeAreas()

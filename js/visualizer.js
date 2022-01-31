@@ -66,16 +66,14 @@ Visualizer.prototype.InitControls = function() {
     this.visualizeAreasBox.addEventListener('change', () => this.ChangeVisualizeLoss())
 
     this.threshold = +this.thresholdBox.value
-    this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; this.needUpdate = true })
+    this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; })
 
-    this.iouBox.addEventListener('change', () => { this.needUpdate = true })
     this.optimizeBtn.addEventListener('click', () => this.Optimize())
     this.optimizeIoUBtn.addEventListener('click', () => this.Optimize(true))
 }
 
 Visualizer.prototype.ChangeVisualizeLoss = function() {
     this.visualizeLoss = this.visualizeAreasBox.value
-    this.needUpdate = true
 }
 
 Visualizer.prototype.InitEvents = function() {
@@ -101,8 +99,6 @@ Visualizer.prototype.Reset = function() {
     this.currPoint = { x: -1, y: -1 }
     this.prevPoint = { x: -1, y: -1 }
     this.action = ACTION_NONE
-
-    this.needUpdate = true
 }
 
 Visualizer.prototype.GetBboxAt = function(x, y) {
@@ -126,12 +122,9 @@ Visualizer.prototype.RemoveActiveBbox = function() {
     }
 
     this.activeBox = null
-    this.needUpdate = true
 }
 
 Visualizer.prototype.AddActiveBbox = function() {
-    this.needUpdate = true
-
     if (this.activeBox.IsCreated())
         return
 
@@ -146,8 +139,6 @@ Visualizer.prototype.MakeAction = function(dx, dy) {
     else if (this.action == ACTION_MOVE || this.action == ACTION_CREATE) {
         this.activeBox.Move(dx, dy)
     }
-
-    this.needUpdate = true
 }
 
 Visualizer.prototype.GetBoxesByColor = function(color) {
