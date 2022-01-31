@@ -13,6 +13,22 @@ function GraphIoU() {
     this.pred_y1 = new Variable()
     this.pred_y2 = new Variable()
 
+    // real
+    let real_width = new Sub(this.real_x2, this.real_x1)
+    let real_height = new Sub(this.real_y2, this.real_y1)
+    let real_area = new Mult(real_width, real_height)
+    let real_aspect_ratio = new Div(real_width, real_height)
+    let real_center_x = new Div(new Add(this.real_x1, this.real_x2), TWO)
+    let real_center_y = new Div(new Add(this.real_y1, this.real_y2), TWO)
+
+    // pred
+    let pred_width = new Sub(this.pred_x2, this.pred_x1)
+    let pred_height = new Sub(this.pred_y2, this.pred_y1)
+    let pred_area = new Mult(pred_width, pred_height)
+    let pred_aspect_ratio = new Div(pred_width, pred_height)
+    let pred_center_x = new Div(new Add(this.pred_x1, this.pred_x2), TWO)
+    let pred_center_y = new Div(new Add(this.pred_y1, this.pred_y2), TWO)
+
     // intersection nodes
     let int_x1 = new Max(this.real_x1, this.pred_x1)
     let int_x2 = new Min(this.real_x2, this.pred_x2)
@@ -20,77 +36,41 @@ function GraphIoU() {
     let int_y1 = new Max(this.real_y1, this.pred_y1)
     let int_y2 = new Min(this.real_y2, this.pred_y2)
 
-    // real sizes
-    let real_width = new Sub(this.real_x2, this.real_x1)
-    let real_height = new Sub(this.real_y2, this.real_y1)
-    let real_area = new Mult(real_width, real_height)
-
-    // pred sizes
-    let pred_width = new Sub(this.pred_x2, this.pred_x1)
-    let pred_height = new Sub(this.pred_y2, this.pred_y1)
-    let pred_area = new Mult(pred_width, pred_height)
-
-    // intersection sizes
-    let int_width = new Clamp(new Sub(int_x2, int_x1), 0)
-    let int_height = new Clamp(new Sub(int_y2, int_y1), 0)
-    let int_area = new Mult(int_width, int_height)
+    let int_width = new Sub(int_x2, int_x1)
+    let int_height = new Sub(int_y2, int_y1)
+    let int_area = new Mult(new Clamp(int_width, 0), new Clamp(int_height, 0))
 
     let union_area = new Sub(new Add(real_area, pred_area), int_area)
-    let iou = new Div(int_area, union_area)
-
-    // DIoU and CIoU calculation
-    let cw = new Sub(new Max(this.pred_x2, this.real_x2), new Min(this.pred_x1, this.real_x1))
-    let ch = new Sub(new Max(this.pred_y2, this.real_y2), new Min(this.pred_y1, this.real_y1))
-    let c2 = new Add(new Square(cw), new Square(ch))
-
-    let arg1 = new Sub(new Add(this.real_x1, this.real_x2), new Add(this.pred_x1, this.pred_x2))
-    let arg2 = new Sub(new Add(this.real_y1, this.real_y2), new Add(this.pred_y1, this.pred_y2))
-
-    let rho2 = new Div(new Add(new Square(arg1), new Square(arg2)), FOUR)
-
-    let a1 = new Atan(new Div(real_width, real_height))
-    let a2 = new Atan(new Div(pred_width, pred_height))
-
-    let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(a2, a1)))
-    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, iou), new Constant(1 + 1e-8))))
-
-    let c_area = new Add(new Mult(cw, ch), EPS)
-
-    // loss function graphs
-    this.iou = iou
-    this.ciou = new Sub(iou, new Add(new Div(rho2, c2), new Mult(v, alpha)))
-    this.diou = new Sub(iou, new Div(rho2, c2))
-    this.giou = new Sub(iou, new Div(new Sub(c_area, union_area), c_area))
 
     // convex nodes
     let convex_x1 = new Min(this.real_x1, this.pred_x1)
     let convex_x2 = new Max(this.real_x2, this.pred_x2)
-
     let convex_y1 = new Min(this.real_y1, this.pred_y1)
     let convex_y2 = new Max(this.real_y2, this.pred_y2)
 
-    let wmin = new Sub(int_x2, int_x1)
-    let hmin = new Sub(int_y2, int_y1)
+    let convex_width = new Sub(convex_x2, convex_x1)
+    let convex_height = new Sub(convex_y2, convex_y1)
+    let convex_area = new Mult(convex_width, convex_height)
+    let convex_diag = new Add(new Square(convex_width), new Square(convex_height))
 
-    let wmax = new Sub(convex_x2, convex_x1)
-    let hmax = new Sub(convex_y2, convex_y1)
+    this.iou = new Div(int_area, union_area)
 
-    let so = new Add(new Div(wmin, wmax), new Div(hmin, hmax))
+    // DIoU and CIoU calculation
+    let rho2 = new SquareNorm(pred_center_x, real_center_x, pred_center_y, real_center_y) // квадрат расстояния между центрами
+    let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(new Atan(pred_aspect_ratio), new Atan(real_aspect_ratio))))
+    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
 
-    let dx1 = new Square(new Sub(this.real_x1, this.pred_x1))
-    let dy1 = new Square(new Sub(this.real_y1, this.pred_y1))
-    let d_lt = new Add(dx1, dy1)
+    this.ciou = new Sub(this.iou, new Add(new Div(rho2, convex_diag), new Mult(v, alpha)))
+    this.diou = new Sub(this.iou, new Div(rho2, convex_diag))
+    this.giou = new Sub(this.iou, new Sub(ONE, new Div(union_area, convex_area)))
 
-    let dx2 = new Square(new Sub(this.real_x2, this.pred_x2))
-    let dy2 = new Square(new Sub(this.real_y2, this.pred_y2))
-    let d_rb = new Add(dx2, dy2)
+    let so = new Add(new Div(int_width, convex_width), new Div(int_height, convex_height))
 
-    let dcx = new Square(new Sub(convex_x2, convex_x1))
-    let dcy = new Square(new Sub(convex_y2, convex_y1))
-    let d_diag = new Add(dcx, dcy)
+    let d_lt = new SquareNorm(this.pred_x1, this.real_x1, this.pred_y1, this.real_y1)
+    let d_rb = new SquareNorm(this.pred_x2, this.real_x2, this.pred_y2, this.real_y2)
 
     let Lso = new Sub(TWO, so)
-    let Lcd = new Add(new Div(d_lt, d_diag), new Div(d_rb, d_diag))
+    let Lcd = new Div(new Add(d_lt, d_rb), convex_diag)
 
     this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
     this.my = new Sub(ONE, new Sum(Lso, new Mult(new Constant(0.2), Lcd)))

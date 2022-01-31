@@ -81,6 +81,14 @@ function NoGrad(arg) {
     this.arg = arg
 }
 
+// (x2 - x1)^2 + (y2 - y1)^2
+function SquareNorm(x1, x2, y1, y2) {
+    this.x1 = x1
+    this.x2 = x2
+    this.y1 = y1
+    this.y2 = y2
+}
+
 function BackwardOne(value) {
     this.arg.Backward(this.grad * value)
 }
@@ -243,6 +251,31 @@ NoGrad.prototype.Forward = function() {
 
 NoGrad.prototype.Backward = function(value) {
 
+}
+
+SquareNorm.prototype.Forward = function() {
+    let x1 = this.x1.Forward()
+    let x2 = this.x2.Forward()
+    let y1 = this.y1.Forward()
+    let y2 = this.y2.Forward()
+
+    let dx = x2 - x1
+    let dy = y2 - y1
+
+    this.grad_x1 = -2 * dx
+    this.grad_x2 = 2 * dx
+
+    this.grad_y1 = -2 * dy
+    this.grad_y2 = 2 * dy
+
+    return dx * dx + dy * dy
+}
+
+SquareNorm.prototype.Backward = function(value) {
+    this.x1.Backward(this.grad_x1 * value)
+    this.x2.Backward(this.grad_x2 * value)
+    this.y1.Backward(this.grad_y1 * value)
+    this.y2.Backward(this.grad_y2 * value)
 }
 
 Add.prototype.Backward = BackwardTwo
