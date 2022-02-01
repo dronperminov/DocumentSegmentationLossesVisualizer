@@ -322,13 +322,20 @@ Visualizer.prototype.InitCanvas = function(canvas, padding, minValue, maxValue, 
 
 Visualizer.prototype.PlotLosses = function(data, steps, maxLoss, maxGrad) {
     let padding = 10
+    let names = Object.keys(data)
+    let sortedNames = names.slice().sort((a, b) => (data[a].lossValues.length - data[b].lossValues.length) + data[a].lossValues[data[a].lossValues.length - 1] - data[b].lossValues[data[b].lossValues.length - 1])
+
+    let lastLosses = sortedNames.map((name) => data[name].lossValues.slice(data[name].lossValues.length - 40))
+
+    let maxLastLoss = 0
+    for (let lastLoss of lastLosses)
+        for (let loss of lastLoss)
+            maxLastLoss = Math.max(maxLastLoss, loss)
 
     let gradNames = ['dx1', 'dy1', 'dx2', 'dy2']
     let lossesCtx = this.InitCanvas(this.lossesCanvas, padding, 0, maxLoss, steps)
+    let lossesDfCtx = this.InitCanvas(this.lossesDfCanvas, padding, 0, maxLastLoss, steps, false)
     let gradCtxs = gradNames.map((gradName) => this.InitCanvas(this.gradCanvases[gradName], padding, -maxGrad, maxGrad, steps, true))
-
-    let names = Object.keys(data)
-    let sortedNames = names.slice().sort((a, b) => (data[a].lossValues.length - data[b].lossValues.length) + data[a].lossValues[data[a].lossValues.length - 1] - data[b].lossValues[data[b].lossValues.length - 1])
 
     for (let index = 0; index < sortedNames.length; index++) {
         let key = sortedNames[index]
@@ -336,8 +343,10 @@ Visualizer.prototype.PlotLosses = function(data, steps, maxLoss, maxGrad) {
         let iouType = data[key].iouType
         let loss = data[key].lossValues
         let grads = data[key].gradValues
+        let lastLoss = lastLosses[index]
 
         this.PlotValues(lossesCtx, loss, 0, maxLoss, padding, color, index, steps, key)
+        this.PlotValues(lossesDfCtx, lastLoss, 0, maxLastLoss, padding, color, index, lastLoss.length - 1, key)
 
         for (let i = 0; i < gradNames.length; i++)
             this.PlotValues(gradCtxs[i], grads[gradNames[i]], -maxGrad, maxGrad, padding, color, index, steps, key)

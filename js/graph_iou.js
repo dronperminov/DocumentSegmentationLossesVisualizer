@@ -61,23 +61,39 @@ function GraphIoU() {
     let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(new Atan(pred_aspect_ratio), new Atan(real_aspect_ratio))))
     let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
 
-    this.ciou = new Sub(this.iou, new Add(new Div(rho2, convex_diag), new Mult(v, alpha)))
-    this.diou = new Sub(this.iou, new Div(rho2, convex_diag))
+    let Lcenter = new Div(rho2, convex_diag)
+    let Lcenter_x = new Square(new Div(new Sub(real_center_x, pred_center_x), convex_width))
+    let Lcenter_y = new Square(new Div(new Sub(real_center_y, pred_center_y), convex_height))
+    let Lcenter2 = new Add(Lcenter_x, Lcenter_y)
+
+    this.ciou = new Sub(this.iou, new Add(Lcenter, new Mult(v, alpha)))
+    this.diou = new Sub(this.iou, Lcenter)
     this.giou = new Sub(this.iou, new Sub(ONE, new Div(union_area, convex_area)))
 
     let so = new Add(new Div(int_width, convex_width), new Div(int_height, convex_height))
+    let Lso = new Sub(TWO, so)
 
     let d_lt = new SquareNorm(this.pred_x1, this.real_x1, this.pred_y1, this.real_y1)
     let d_rb = new SquareNorm(this.pred_x2, this.real_x2, this.pred_y2, this.real_y2)
-
-    let Lso = new Sub(TWO, so)
     let Lcd = new Div(new Add(d_lt, d_rb), convex_diag)
 
-    let so2 = new Sum(new Div(int_width, convex_width), new Div(int_height, convex_height), new Div(int_diag, convex_diag))
-    let Lso2 = new Sub(THREE, so2)
+    let min_width = new Min(real_width, pred_width)
+    let min_height = new Min(real_height, pred_height)
+    let max_width = new Max(real_width, pred_width)
+    let max_height = new Max(real_height, pred_height)
+
+    let Lform = new Sub(TWO, new Add(new Div(min_width, max_width), new Div(min_height, max_height)))
+    let Ldiag = new Sub(ONE, new Div(int_diag, convex_diag))
 
     this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
-    this.my = new Sub(ONE, new Sum(Lso2, new Mult(new Constant(0.2), Lcd)))
+    this.isca = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
+    this.fm = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
+
+    this.my1 = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
+    this.my2 = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
+
+    this.my3 = new Sub(ONE, new Sum(Lso, Ldiag, Lform, new Mult(new Constant(0.2), Lcd), Lcenter2))
+    this.my4 = new Sub(ONE, new Sum(Lso, Ldiag, Lform, new Mult(new Constant(0.2), Lcd), Lcenter2))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
@@ -105,8 +121,29 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     else if (iouType == 'SCA') {
         loss = this.sca
     }
-    else if (iouType == 'My') {
-        loss = this.my
+    else if (iouType == 'ISCA') {
+        loss = this.isca
+    }
+    else if (iouType == 'FM') {
+        loss = this.fm
+    }
+    else if (iouType == 'My1') {
+        loss = this.my1
+    }
+    else if (iouType == 'My2') {
+        loss = this.my2
+    }
+    else if (iouType == 'My3') {
+        loss = this.my3
+    }
+    else if (iouType == 'My4') {
+        loss = this.my4
+    }
+    else if (iouType == 'My5') {
+        loss = this.my5
+    }
+    else if (iouType == 'My6') {
+        loss = this.my6
     }
 
     let L = loss.Forward()

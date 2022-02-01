@@ -14,6 +14,7 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
 
     this.plotBox = document.getElementById('plot-box')
     this.lossesCanvas = document.getElementById('losses-box')
+    this.lossesDfCanvas = document.getElementById('losses-df-box')
     this.gradCanvases = {
         'dx1': document.getElementById('dx1-box'),
         'dy1': document.getElementById('dy1-box'),
@@ -253,11 +254,11 @@ Visualizer.prototype.Random = function(a, b) {
 }
 
 Visualizer.prototype.RandomBox = function(color) {
-    let x1 = this.Random(0, this.imageWidth - 20)
-    let y1 = this.Random(0, this.imageHeight - 20)
+    let x1 = this.Random(0, this.imageWidth - 100)
+    let y1 = this.Random(0, this.imageHeight - 100)
 
-    let x2 = this.Random(x1 + 5, this.imageWidth)
-    let y2 = this.Random(y1 + 5, this.imageHeight)
+    let x2 = this.Random(x1 + 50, this.imageWidth)
+    let y2 = this.Random(y1 + 50, this.imageHeight)
 
     return new BoundingBox(x1, y1, x2, y2, color, this.imageWidth, this.imageHeight, true)
 }
@@ -361,6 +362,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
     for (let key of Object.keys(data)) {
         let predBoxes = data[key].pred
         let iouType = data[key].iouType
+        let lossValues = data[key].lossValues
         let avg_loss = 0
         let avg_grads = { 'dx1': 0, 'dy1': 0, 'dx2': 0, 'dy2': 0 }
         losses[key] = []
@@ -381,7 +383,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
         avg_loss /= predBoxes.length
         maxLoss = Math.max(maxLoss, avg_loss)
 
-        if (avg_loss >= threshold) {
+        if (lossValues.length == 0 || lossValues[lossValues.length - 1] >= threshold) {
             data[key].lossValues.push(avg_loss)
 
             for (let gradName of Object.keys(avg_grads)) {
