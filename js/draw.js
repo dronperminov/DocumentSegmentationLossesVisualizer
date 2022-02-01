@@ -14,13 +14,17 @@ Visualizer.prototype.UpdateCursor = function(bbox, x, y) {
     }
 }
 
-Visualizer.prototype.DrawLine = function(x1, y1, x2, y2, text, color, t = 0.5) {
-    this.ctx.strokeStyle = color
-    this.ctx.fillStyle = color
-    this.ctx.beginPath()
-    this.ctx.moveTo(x1, y1)
-    this.ctx.lineTo(x2, y2)
-    this.ctx.stroke()
+Visualizer.prototype.DrawLine = function(ctx, x1, y1, x2, y2, color, lineWidth = 1) {
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2, y2)
+    ctx.stroke()
+}
+
+Visualizer.prototype.DrawTextLine = function(x1, y1, x2, y2, text, color, t = 0.5) {
+    this.DrawLine(this.ctx, x1, y1, x2, y2, color)
 
     this.ctx.save()
     this.ctx.translate(x1 + t * (x2 - x1), y1 + t * (y2 - y1))
@@ -28,6 +32,7 @@ Visualizer.prototype.DrawLine = function(x1, y1, x2, y2, text, color, t = 0.5) {
     this.ctx.font = '14px serif'
     this.ctx.textAlign = "center"
     this.ctx.textBaseline = "bottom"
+    this.ctx.fillStyle = color
     this.ctx.fillText(text, 0, 0)
     this.ctx.restore()
 }
@@ -74,15 +79,15 @@ Visualizer.prototype.DrawBboxesInfo = function() {
     let center_dy = Math.pow(real.ny1 + real.ny2 - pred.ny1 - pred.ny2, 2)
     let center_dst = (center_dx + center_dy) / 4
 
-    this.DrawLine(convex.x1, convex.y2, convex.x2, convex.y1, `${this.Round(Math.pow(convex.nx2 - convex.nx1, 2) + Math.pow(convex.ny2 - convex.ny1, 2))}`, 'hsl(240, 50%, 40%)')
-    this.DrawLine(convex.x1, convex.y1, convex.x1, convex.y2, `${this.Round(convex.ny2 - convex.ny1)}`, 'hsl(240, 50%, 40%)')
-    this.DrawLine(convex.x1, convex.y1, convex.x2, convex.y1, `${this.Round(convex.nx2 - convex.nx1)}`, 'hsl(240, 50%, 40%)')
+    this.DrawTextLine(convex.x1, convex.y2, convex.x2, convex.y1, `${this.Round(Math.pow(convex.nx2 - convex.nx1, 2) + Math.pow(convex.ny2 - convex.ny1, 2))}`, 'hsl(240, 50%, 40%)')
+    this.DrawTextLine(convex.x1, convex.y1, convex.x1, convex.y2, `${this.Round(convex.ny2 - convex.ny1)}`, 'hsl(240, 50%, 40%)')
+    this.DrawTextLine(convex.x1, convex.y1, convex.x2, convex.y1, `${this.Round(convex.nx2 - convex.nx1)}`, 'hsl(240, 50%, 40%)')
 
-    this.DrawLine(int.x1, int.y2, int.x2, int.y1, `${this.Round(Math.pow(int.nx2 - int.nx1, 2) + Math.pow(int.ny2 - int.ny1, 2))}`, 'hsl(300, 50%, 40%)')
-    this.DrawLine(int.x1, int.y1, int.x2, int.y1, `${this.Round(int.nx2 - int.nx1)}`, 'hsl(300, 50%, 40%)')
-    this.DrawLine(int.x1, int.y1, int.x1, int.y2, `${this.Round(int.ny2 -int.ny1)}`, 'hsl(300, 50%, 40%)')
+    this.DrawTextLine(int.x1, int.y2, int.x2, int.y1, `${this.Round(Math.pow(int.nx2 - int.nx1, 2) + Math.pow(int.ny2 - int.ny1, 2))}`, 'hsl(300, 50%, 40%)')
+    this.DrawTextLine(int.x1, int.y1, int.x2, int.y1, `${this.Round(int.nx2 - int.nx1)}`, 'hsl(300, 50%, 40%)')
+    this.DrawTextLine(int.x1, int.y1, int.x1, int.y2, `${this.Round(int.ny2 -int.ny1)}`, 'hsl(300, 50%, 40%)')
 
-    this.DrawLine(real_cx, real_cy, pred_cx, pred_cy, `${this.Round(center_dst)}`, 'hsl(160, 50%, 40%)')
+    this.DrawTextLine(real_cx, real_cy, pred_cx, pred_cy, `${this.Round(center_dst)}`, 'hsl(160, 50%, 40%)')
 }
 
 Visualizer.prototype.Round = function(v) {
@@ -250,11 +255,13 @@ Visualizer.prototype.Draw = function() {
 }
 
 Visualizer.prototype.PlotValues = function(data, values, minValue, maxValue,padding, color, index, steps, key) {
-    data.ctx.font = '15px serif'
+    let fontSize = Math.max(12, Math.min(data.width, data.height) / 25)
+
+    data.ctx.font = `${fontSize}px serif`
     data.ctx.textAlign = 'right'
     data.ctx.textBaseline = 'top'
     data.ctx.fillStyle = `hsl(${color}, 50%, 70%)`
-    data.ctx.fillText(`${key} = ${this.Round(values[values.length - 1])} (${values.length} steps)`, data.width - padding, padding + index * 15)
+    data.ctx.fillText(`${key} = ${this.Round(values[values.length - 1])} (${values.length} steps)`, data.width - padding, padding + index * (fontSize + 1))
 
     data.ctx.lineWidth = 2
     data.ctx.strokeStyle = `hsla(${color}, 50%, 70%, 70%)`
@@ -279,7 +286,7 @@ Visualizer.prototype.PlotValues = function(data, values, minValue, maxValue,padd
     data.ctx.stroke()
 }
 
-Visualizer.prototype.InitCanvas = function(canvas, padding, isCenterZero = false) {
+Visualizer.prototype.InitCanvas = function(canvas, padding, minValue, maxValue, steps, isCenterZero = false) {
     let width = canvas.clientWidth
     let height = canvas.clientHeight
     let y0 = isCenterZero ? height / 2 : height - padding
@@ -288,16 +295,27 @@ Visualizer.prototype.InitCanvas = function(canvas, padding, isCenterZero = false
     canvas.height = height
 
     let ctx = canvas.getContext('2d')
-
     ctx.clearRect(0, 0, width, height)
-    ctx.strokeStyle = '#000'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(padding, padding)
-    ctx.lineTo(padding, height - padding)
-    ctx.lineTo(padding, y0)
-    ctx.lineTo(width - padding, y0)
-    ctx.stroke()
+
+    this.DrawLine(ctx, padding, padding, padding, height - padding, '#000')
+    this.DrawLine(ctx, padding, y0, width - padding, y0, '#000')
+
+    ctx.textAlign = 'center'
+    ctx.textBaseline = isCenterZero ? 'top' : 'bottom'
+
+    this.DrawLine(ctx, width - padding, y0 - 3, width - padding, y0 + 3, '#000')
+    ctx.fillText(steps, width - padding, y0 + (isCenterZero ? 5 : -5))
+
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+
+    this.DrawLine(ctx, padding - 3, padding, padding + 3, padding, '#000')
+    ctx.fillText(this.Round(maxValue), padding + 5, padding)
+
+    if (isCenterZero) {
+        this.DrawLine(ctx, padding - 3, height - padding, padding + 3, height - padding, '#000')
+        ctx.fillText(this.Round(minValue), padding + 5, height - padding)
+    }
 
     return {ctx, width, height }
 }
@@ -306,8 +324,8 @@ Visualizer.prototype.PlotLosses = function(data, steps, maxLoss, maxGrad) {
     let padding = 10
 
     let gradNames = ['dx1', 'dy1', 'dx2', 'dy2']
-    let lossesCtx = this.InitCanvas(this.lossesCanvas, padding)
-    let gradCtxs = gradNames.map((gradName) => this.InitCanvas(this.gradCanvases[gradName], padding, true))
+    let lossesCtx = this.InitCanvas(this.lossesCanvas, padding, 0, maxLoss, steps)
+    let gradCtxs = gradNames.map((gradName) => this.InitCanvas(this.gradCanvases[gradName], padding, -maxGrad, maxGrad, steps, true))
 
     let names = Object.keys(data)
     let sortedNames = names.slice().sort((a, b) => (data[a].lossValues.length - data[b].lossValues.length) + data[a].lossValues[data[a].lossValues.length - 1] - data[b].lossValues[data[b].lossValues.length - 1])

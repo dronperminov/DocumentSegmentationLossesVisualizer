@@ -167,32 +167,24 @@ Max.prototype.Forward = function() {
     let v1 = this.arg1.Forward()
     let v2 = this.arg2.Forward()
 
-    if (v1 > v2) {
-        this.grad1 = 1
-        this.grad2 = 0
-        return v1
-    }
-    else {
-        this.grad1 = 0
-        this.grad2 = 1
-        return v2
-    }
+    let sign = Math.sign(v1 - v2)
+
+    this.grad1 = 0.5 * (1 + sign)
+    this.grad2 = 0.5 * (1 - sign)
+
+    return Math.max(v1, v2)
 }
 
 Min.prototype.Forward = function() {
     let v1 = this.arg1.Forward()
     let v2 = this.arg2.Forward()
 
-    if (v1 < v2) {
-        this.grad1 = 1
-        this.grad2 = 0
-        return v1
-    }
-    else {
-        this.grad1 = 0
-        this.grad2 = 1
-        return v2
-    }
+    let sign = Math.sign(v1 - v2)
+
+    this.grad2 = 0.5 * (1 + sign)
+    this.grad1 = 0.5 * (1 - sign)
+
+    return Math.min(v1, v2)
 }
 
 Clamp.prototype.Forward = function() {
