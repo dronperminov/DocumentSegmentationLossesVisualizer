@@ -87,13 +87,7 @@ function GraphIoU() {
 
     this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
     this.isca = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
-    this.fm = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
-
-    this.my1 = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
-    this.my2 = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
-
-    this.my3 = new Sub(ONE, new Sum(Lso, Ldiag, Lform, new Mult(new Constant(0.2), Lcd), Lcenter2))
-    this.my4 = new Sub(ONE, new Sum(Lso, Ldiag, Lform, new Mult(new Constant(0.2), Lcd), Lcenter2))
+    this.fm = new Sub(ONE, new Sum(Lso, Ldiag, Lform, new Mult(new Constant(0.2), Lcd), Lcenter2))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
@@ -126,24 +120,6 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     }
     else if (iouType == 'FM') {
         loss = this.fm
-    }
-    else if (iouType == 'My1') {
-        loss = this.my1
-    }
-    else if (iouType == 'My2') {
-        loss = this.my2
-    }
-    else if (iouType == 'My3') {
-        loss = this.my3
-    }
-    else if (iouType == 'My4') {
-        loss = this.my4
-    }
-    else if (iouType == 'My5') {
-        loss = this.my5
-    }
-    else if (iouType == 'My6') {
-        loss = this.my6
     }
 
     let L = loss.Forward()

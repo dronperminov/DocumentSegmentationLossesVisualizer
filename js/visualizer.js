@@ -14,7 +14,7 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
 
     this.plotBox = document.getElementById('plot-box')
     this.lossesCanvas = document.getElementById('losses-box')
-    this.lossesDfCanvas = document.getElementById('losses-df-box')
+    this.errorCanvas = document.getElementById('error-box')
     this.gradCanvases = {
         'dx1': document.getElementById('dx1-box'),
         'dy1': document.getElementById('dy1-box'),
@@ -319,6 +319,7 @@ Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
 
     for (let key of Object.keys(data)) {
         data[key].lossValues = []
+        data[key].errorValues = []
         data[key].gradValues = { 'dx1': [], 'dy1': [], 'dx2': [], 'dy2': [] }
 
         for (let box of randomBoxes) {
@@ -348,12 +349,13 @@ Visualizer.prototype.GetOptimalRealBox = function(predBox, realBoxes) {
     return imax
 }
 
-Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, totalMaxGrad = 0, steps = 0, evalTime = 0, drawTime = 0, updateTime = 0) {
+Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, totalMaxError = 0, totalMaxGrad = 0, steps = 0, evalTime = 0, drawTime = 0, updateTime = 0) {
     let realBoxes = this.GetBoxesByColor(BBOX_REAL_COLOR)
 
     let losses = {}
     let maxLoss = 0
-    let threshold = 0.014
+    let maxError = 0
+    let threshold = 0.005
     let isStop = true
 
     this.Clear()
@@ -362,8 +364,9 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
     for (let key of Object.keys(data)) {
         let predBoxes = data[key].pred
         let iouType = data[key].iouType
-        let lossValues = data[key].lossValues
+        let errorValues = data[key].errorValues
         let avg_loss = 0
+        let avg_error = 0
         let avg_grads = { 'dx1': 0, 'dy1': 0, 'dx2': 0, 'dy2': 0 }
         losses[key] = []
 
@@ -375,16 +378,21 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
             losses[key][j] = loss
 
             avg_loss += loss.loss
+            avg_error += realBoxes[index].RegressionError(predBoxes[j])
 
             for (let gradName of Object.keys(avg_grads))
                 avg_grads[gradName] += loss[gradName]
         }
 
         avg_loss /= predBoxes.length
-        maxLoss = Math.max(maxLoss, avg_loss)
+        avg_error /= predBoxes.length
 
-        if (lossValues.length == 0 || lossValues[lossValues.length - 1] >= threshold) {
+        maxLoss = Math.max(maxLoss, avg_loss)
+        maxError = Math.max(maxError, avg_error)
+
+        if (errorValues.length == 0 || errorValues[errorValues.length - 1] >= threshold) {
             data[key].lossValues.push(avg_loss)
+            data[key].errorValues.push(avg_error)
 
             for (let gradName of Object.keys(avg_grads)) {
                 let avg_grad = avg_grads[gradName] / predBoxes.length
@@ -399,9 +407,10 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
     let t1 = performance.now()
 
     totalMaxLoss = Math.max(totalMaxLoss, maxLoss)
+    totalMaxError = Math.max(totalMaxError, maxError)
 
     this.Draw()
-    this.PlotLosses(data, steps, totalMaxLoss, totalMaxGrad)
+    this.PlotLosses(data, steps, totalMaxLoss, totalMaxError, totalMaxGrad)
 
     if (isStop)
         return
@@ -446,5 +455,5 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
 
     console.log(`${steps}. eval: ${this.Round(evalTime / (steps + 1))}, draw: ${this.Round(drawTime / (steps + 1))}, update: ${this.Round(updateTime / (steps + 1))}`)
 
-    requestAnimationFrame(() => this.OptimizeStep(data, alpha, totalMaxLoss, totalMaxGrad, steps + 1, evalTime + t1 - t0, drawTime + t2 - t1, updateTime + t3 - t2))
+    requestAnimationFrame(() => this.OptimizeStep(data, alpha, totalMaxLoss, totalMaxError, totalMaxGrad, steps + 1, evalTime + t1 - t0, drawTime + t2 - t1, updateTime + t3 - t2))
 }

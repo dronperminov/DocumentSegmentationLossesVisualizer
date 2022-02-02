@@ -341,3 +341,12 @@ BoundingBox.prototype.IoU = function(bbox, iouType = 'IoU') {
 
     return iou
 }
+
+BoundingBox.prototype.RegressionError = function(bbox) {
+    let dx1 = Math.abs(this.nx1 - bbox.nx1)
+    let dy1 = Math.abs(this.ny1 - bbox.ny1)
+    let dx2 = Math.abs(this.nx2 - bbox.nx2)
+    let dy2 = Math.abs(this.ny2 - bbox.ny2)
+
+    return dx1 + dy1 + dx2 + dy2
+}

@@ -39,13 +39,8 @@
             <div id="metrics"></div>
             <div id="plot-box">
                 <div class="plots">
-                    <div class="plots-cell">
-                        <canvas id="losses-box"></canvas>
-                    </div>
-
-                    <div class="plots-cell">
-                        <div id="losses-table"></div>
-                    </div>
+                    <div class="plots-cell">Ошибка регрессии = |B<sup>GT</sup> - B<sup>P</sup>|<canvas id="error-box"></canvas></div>
+                    <div class="plots-cell">Функция потерь (L)<canvas id="losses-box"></canvas></div>
                 </div>
 
                 <div class="grads">
@@ -69,7 +64,7 @@
 
     <script>
         let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im23.jpg', 'images/im24.jpg', 'images/im54.jpg', 'images/im94.jpg']
-        let iouTypes = ['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA', 'ISCA', 'FM', 'My1', 'My2', 'My3','My4']
+        let iouTypes = ['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA', 'ISCA', 'FM']
         let visualizer = new Visualizer('canvas', images, iouTypes)
 
         setInterval(() => visualizer.Draw(), 10)
