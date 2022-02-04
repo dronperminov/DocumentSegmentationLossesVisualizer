@@ -62,9 +62,6 @@ function GraphIoU() {
     let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
 
     let Lcenter = new Div(rho2, convex_diag)
-    let Lcenter_x = new Square(new Div(new Sub(real_center_x, pred_center_x), convex_width))
-    let Lcenter_y = new Square(new Div(new Sub(real_center_y, pred_center_y), convex_height))
-    let Lcenter2 = new Add(Lcenter_x, Lcenter_y)
 
     this.ciou = new Sub(this.iou, new Add(Lcenter, new Mult(v, alpha)))
     this.diou = new Sub(this.iou, Lcenter)
@@ -83,11 +80,10 @@ function GraphIoU() {
     let max_height = new Max(real_height, pred_height)
 
     let Lform = new Sub(TWO, new Add(new Div(min_width, max_width), new Div(min_height, max_height)))
-    let Ldiag = new Sub(ONE, new Div(int_diag, convex_diag))
 
     this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
-    this.isca = new Sub(ONE, new Sum(Lso, Ldiag, new Mult(new Constant(0.2), Lcd), Lcenter2))
-    this.fm = new Sub(ONE, new Sum(Lso, Ldiag, Lform, new Mult(new Constant(0.2), Lcd), Lcenter2))
+    this.isca = new Sub(ONE, new Sum(new Square(Lso), Lcenter))
+    this.fm = new Sub(ONE, new Sum(Lso, Lform, Lcenter))
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
