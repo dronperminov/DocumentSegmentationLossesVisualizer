@@ -84,6 +84,48 @@ function GraphIoU() {
     this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
     this.isca = new Sub(ONE, new Sum(new Square(Lso), Lcenter))
     this.fm = new Sub(ONE, new Sum(Lso, Lform, Lcenter))
+
+    let pred_width_x1 = new Sub(this.pred_x2, new NoGrad(this.pred_x1))
+    let pred_width_x2 = new Sub(new NoGrad(this.pred_x2), this.pred_x1)
+    let pred_height_y1 = new Sub(this.pred_y2, new NoGrad(this.pred_y1))
+    let pred_height_y2 = new Sub(new NoGrad(this.pred_y2), this.pred_y1)
+
+    let w_sign = new Sign(new Sub(real_width, pred_width))
+    let h_sign = new Sign(new Sub(real_height, pred_height))
+
+    k1_x1 = new Div(new Mult(this.pred_x1, new Sub(new Mult(new Constant(0.5), this.pred_x1), new Sum(this.real_x1, new Sign(new Sub(this.real_x1, this.pred_x1))))), new Sub(new Constant(0), real_width))
+    k2_x1 = new Add(new Mult(new Sub(new NoGrad(this.pred_x2), new Sum(this.real_x1, new Sign(new Sub(this.real_x1, this.pred_x1)))), new Log(pred_width_x2)), this.pred_x1)
+    Lx1 = new Add(new Mult(new Div(new Sub(ONE, w_sign), TWO), k1_x1), new Mult(new Div(new Add(ONE, w_sign), TWO), k2_x1))
+
+    k1_y1 = new Div(new Mult(this.pred_y1, new Sub(new Mult(new Constant(0.5), this.pred_y1), new Sum(this.real_y1, new Sign(new Sub(this.real_y1, this.pred_y1))))), new Sub(new Constant(0), real_height))
+    k2_y1 = new Add(new Mult(new Sub(new NoGrad(this.pred_y2), new Sum(this.real_y1, new Sign(new Sub(this.real_y1, this.pred_y1)))), new Log(pred_height_y2)), this.pred_y1)
+    Ly1 = new Add(new Mult(new Div(new Sub(ONE, h_sign), TWO), k1_y1), new Mult(new Div(new Add(ONE, h_sign), TWO), k2_y1))
+
+    k1_x2 = new Div(new Mult(this.pred_x2, new Sub(new Mult(new Constant(0.5), this.pred_x2), new Sum(this.real_x2, new Sign(new Sub(this.real_x2, this.pred_x2))))), new Sub(new Constant(0), real_width))
+    k2_x2 = new Add(new Mult(new Sub(new NoGrad(this.pred_x1), new Sum(this.real_x2, new Sign(new Sub(this.real_x2, this.pred_x2)))), new Log(pred_width_x1)), this.pred_x2)
+    Lx2 = new Sub(new Mult(new Div(new Sub(ONE, w_sign), TWO), k1_x2), new Mult(new Div(new Add(ONE, w_sign), TWO), k2_x2))
+
+    k1_y2 = new Div(new Mult(this.pred_y2, new Sub(new Mult(new Constant(0.5), this.pred_y2), new Sum(this.real_y2, new Sign(new Sub(this.real_y2, this.pred_y2))))), new Sub(new Constant(0), real_height))
+    k2_y2 = new Add(new Mult(new Sub(new NoGrad(this.pred_y1), new Sum(this.real_y2, new Sign(new Sub(this.real_y2, this.pred_y2)))), new Log(pred_height_y1)), this.pred_y2)
+    Ly2 = new Sub(new Mult(new Div(new Sub(ONE, h_sign), TWO), k1_y2), new Mult(new Div(new Add(ONE, h_sign), TWO), k2_y2))
+
+    this.L_grad_fast = new Sum(Lx1, Ly1, Lx2, Ly2)
+    this.L_grad_gt = new Sum(k1_x1, k1_x2, k1_y1, k1_y2)
+}
+
+GraphIoU.prototype.GradLoss = function() {
+    let dx1 = this.real_x1.value - this.pred_x1.value
+    let dy1 = this.real_y1.value - this.pred_y1.value
+    let dx2 = this.real_x2.value - this.pred_x2.value
+    let dy2 = this.real_y2.value - this.pred_y2.value
+
+    return {
+        loss: Lso,
+        dx1: -(Math.sign(dx1) + dx1) / min_width,
+        dy1: -(Math.sign(dy1) + dy1) / min_height,
+        dx2: -(Math.sign(dx2) + dx2) / min_width,
+        dy2: -(Math.sign(dy2) + dy2) / min_height
+    }
 }
 
 GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
@@ -116,6 +158,15 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     }
     else if (iouType == 'FM') {
         loss = this.fm
+    }
+    else if (iouType == 'L_grad_fast') {
+        loss = this.L_grad_fast
+    }
+    else if (iouType == 'L_grad_gt') {
+        loss = this.L_grad_gt
+    }
+    else if (iouType == 'Grad') {
+        return this.GradLoss()
     }
 
     let L = loss.Forward()

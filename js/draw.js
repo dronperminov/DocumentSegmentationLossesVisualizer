@@ -23,13 +23,13 @@ Visualizer.prototype.DrawLine = function(ctx, x1, y1, x2, y2, color, lineWidth =
     ctx.stroke()
 }
 
-Visualizer.prototype.DrawTextLine = function(x1, y1, x2, y2, text, color, t = 0.5) {
+Visualizer.prototype.DrawTextLine = function(x1, y1, x2, y2, text, color, t = 0.5, font_size = 14) {
     this.DrawLine(this.ctx, x1, y1, x2, y2, color)
 
     this.ctx.save()
     this.ctx.translate(x1 + t * (x2 - x1), y1 + t * (y2 - y1))
     this.ctx.rotate(Math.atan2(y2 - y1, x2 - x1))
-    this.ctx.font = '14px serif'
+    this.ctx.font = font_size + 'px serif'
     this.ctx.textAlign = "center"
     this.ctx.textBaseline = "bottom"
     this.ctx.fillStyle = color
@@ -88,6 +88,18 @@ Visualizer.prototype.DrawBboxesInfo = function() {
     this.DrawTextLine(int.x1, int.y1, int.x1, int.y2, `${this.Round(int.ny2 -int.ny1)}`, 'hsl(300, 50%, 40%)')
 
     this.DrawTextLine(real_cx, real_cy, pred_cx, pred_cy, `${this.Round(center_dst)}`, 'hsl(160, 50%, 40%)')
+
+    int.color = 240
+    int.Draw(this.ctx)
+
+    this.DrawTextLine(real.x1, real.y1, real.x1, real.y1, 'x₁ᶢ, y₁ᶢ', `hsl(${BBOX_REAL_COLOR}, 60%, 70%)`, 0.5, 20)
+    this.DrawTextLine(real.x2, real.y2 + 18, real.x2, real.y2 + 18, 'x₂ᶢ, y₂ᶢ', `hsl(${BBOX_REAL_COLOR}, 60%, 70%)`, 0.5, 20)
+
+    this.DrawTextLine(pred.x1, pred.y1, pred.x1, pred.y1, 'x₁ᵖ, y₁ᵖ', `hsl(${BBOX_PRED_COLOR}, 60%, 70%)`, 0.5, 20)
+    this.DrawTextLine(pred.x2, pred.y2 + 18, pred.x2, pred.y2 + 18, 'x₂ᵖ, y₂ᵖ', `hsl(${BBOX_PRED_COLOR}, 60%, 70%)`, 0.5, 20)
+
+    this.DrawTextLine(int.x1, int.y1, int.x1, int.y1, 'x₁ⁱⁿᵗ, y₁ⁱⁿᵗ', `hsl(240, 60%, 70%)`, 0.5, 20)
+    this.DrawTextLine(int.x2, int.y2 + 18, int.x2, int.y2 + 18, 'x₂ⁱⁿᵗ, y₂ⁱⁿᵗ', `hsl(240, 60%, 70%)`, 0.5, 20)
 }
 
 Visualizer.prototype.Round = function(v) {

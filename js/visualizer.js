@@ -420,18 +420,13 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
         let predBoxes = data[key].pred
 
         for (let j = 0; j < predBoxes.length; j++) {
-            let scale = 1 + losses[key][j].loss
-
-            if (losses[key][j].loss < threshold)
-                continue
-
             if (this.visualizeLoss == 'none')
                 predBoxes[j].name = `${key} = ${this.Round(losses[key][j].loss)}`
 
-            predBoxes[j].nx1 -= alpha * losses[key][j].dx1 * scale
-            predBoxes[j].nx2 -= alpha * losses[key][j].dx2 * scale
-            predBoxes[j].ny1 -= alpha * losses[key][j].dy1 * scale
-            predBoxes[j].ny2 -= alpha * losses[key][j].dy2 * scale
+            predBoxes[j].nx1 -= alpha * losses[key][j].dx1
+            predBoxes[j].nx2 -= alpha * losses[key][j].dx2
+            predBoxes[j].ny1 -= alpha * losses[key][j].dy1
+            predBoxes[j].ny2 -= alpha * losses[key][j].dy2
 
             if (predBoxes[j].nx1 > predBoxes[j].nx2) {
                 let tmp = predBoxes[j].nx1
