@@ -1,4 +1,4 @@
-function GraphIoU() {
+function GraphLoss() {
     // real nodes
     this.real_x1 = new Constant()
     this.real_x2 = new Constant()
@@ -90,7 +90,7 @@ function GraphIoU() {
     this.tanh100 = this.TanhLoss(new Constant(100))
 }
 
-GraphIoU.prototype.GradGtLoss = function() {
+GraphLoss.prototype.GradGtLoss = function() {
     let real_width = new Sub(this.real_x2, this.real_x1)
     let real_height = new Sub(this.real_y2, this.real_y1)
 
@@ -110,7 +110,7 @@ GraphIoU.prototype.GradGtLoss = function() {
     return new Add(k1_x, k1_y)
 }
 
-GraphIoU.prototype.TanhLoss = function(k) {
+GraphLoss.prototype.TanhLoss = function(k) {
     let real_width = new Sub(this.real_x2, this.real_x1)
     let real_height = new Sub(this.real_y2, this.real_y1)
 
@@ -131,7 +131,7 @@ GraphIoU.prototype.TanhLoss = function(k) {
     return new Add(Lx, Ly)
 }
 
-GraphIoU.prototype.GradLoss = function() {
+GraphLoss.prototype.GradLoss = function() {
     let real_width = this.real_x2.value - this.real_x1.value
     let real_height = this.real_y2.value - this.real_y1.value
 
@@ -151,7 +151,7 @@ GraphIoU.prototype.GradLoss = function() {
     }
 }
 
-GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
+GraphLoss.prototype.Evaluate = function(realBox, predBox, scale, name) {
     this.real_x1.SetValue(realBox.nx1)
     this.real_y1.SetValue(realBox.ny1)
     this.real_x2.SetValue(realBox.nx2)
@@ -162,43 +162,43 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     this.pred_x2.SetValue(predBox.nx2)
     this.pred_y2.SetValue(predBox.ny2)
 
-    if (iouType == 'Grad')
+    if (name == 'Grad')
         return this.GradLoss()
 
     let loss = null
 
-    if (iouType == 'IoU') {
+    if (name == 'IoU') {
         loss = this.iou
     }
-    else if (iouType == 'DIoU') {
+    else if (name == 'DIoU') {
         loss = this.diou
     }
-    else if (iouType == 'CIoU') {
+    else if (name == 'CIoU') {
         loss = this.ciou
     }
-    else if (iouType == 'GIoU') {
+    else if (name == 'GIoU') {
         loss = this.giou
     }
-    else if (iouType == 'SCA') {
+    else if (name == 'SCA') {
         loss = this.sca
     }
-    else if (iouType == 'ISCA') {
+    else if (name == 'ISCA') {
         loss = this.isca
     }
-    else if (iouType == 'FM') {
+    else if (name == 'FM') {
         loss = this.fm
     }
-    else if (iouType == 'gradGT') {
+    else if (name == 'gradGT') {
         loss = this.grad_gt
     }
-    else if (iouType == 'tanh5') {
+    else if (name == 'tanh5') {
         loss = this.tanh5
     }
-    else if (iouType == 'tanh100') {
+    else if (name == 'tanh100') {
         loss = this.tanh100
     }
     else
-        throw "unknown loss '" + iouType + "'"
+        throw "unknown loss '" + name + "'"
 
     let L = loss.Forward()
     loss.Backward(scale)
