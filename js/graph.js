@@ -68,6 +68,10 @@ function Log(arg) {
     this.arg = arg
 }
 
+function Cosh(arg) {
+    this.arg = arg
+}
+
 function Abs(arg) {
     this.arg = arg
 }
@@ -227,6 +231,12 @@ Log.prototype.Forward = function() {
     return Math.log(value)
 }
 
+Cosh.prototype.Forward = function() {
+    let value = this.arg.Forward()
+    this.grad = Math.sinh(value)
+    return Math.cosh(value)
+}
+
 Abs.prototype.Forward = function() {
     let value = this.arg.Forward()
     this.grad = Math.sign(value)
@@ -281,9 +291,11 @@ Square.prototype.Backward = BackwardOne
 Atan.prototype.Backward = BackwardOne
 Power.prototype.Backward = BackwardOne
 Log.prototype.Backward = BackwardOne
+Cosh.prototype.Backward = BackwardOne
 Abs.prototype.Backward = BackwardOne
 Sign.prototype.Backward = BackwardOne
 
+const HALF = new Constant(0.5)
 const ONE = new Constant(1)
 const TWO = new Constant(2)
 const THREE = new Constant(3)

@@ -54,18 +54,19 @@ function GraphIoU() {
     let convex_area = new Mult(convex_width, convex_height)
     let convex_diag = new Add(new Square(convex_width), new Square(convex_height))
 
-    this.iou = new Div(int_area, union_area)
+    let iou = new Div(int_area, union_area)
 
     // DIoU and CIoU calculation
     let rho2 = new SquareNorm(pred_center_x, real_center_x, pred_center_y, real_center_y) // квадрат расстояния между центрами
     let v = new Mult(new Constant(4 / (Math.PI * Math.PI)), new Square(new Sub(new Atan(pred_aspect_ratio), new Atan(real_aspect_ratio))))
-    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, this.iou), new Constant(1 + 1e-8))))
+    let alpha = new NoGrad(new Div(v, new Add(new Sub(v, iou), new Constant(1 + 1e-8))))
 
     let Lcenter = new Div(rho2, convex_diag)
 
-    this.ciou = new Sub(this.iou, new Add(Lcenter, new Mult(v, alpha)))
-    this.diou = new Sub(this.iou, Lcenter)
-    this.giou = new Sub(this.iou, new Sub(ONE, new Div(union_area, convex_area)))
+    this.iou = new Sub(ONE, iou)
+    this.ciou = new Sum(this.iou, Lcenter, new Mult(v, alpha))
+    this.diou = new Sum(this.iou, Lcenter)
+    this.giou = new Sum(this.iou, new Sub(ONE, new Div(union_area, convex_area)))
 
     let so = new Add(new Div(int_width, convex_width), new Div(int_height, convex_height))
     let Lso = new Sub(TWO, so)
@@ -81,50 +82,72 @@ function GraphIoU() {
 
     let Lform = new Sub(TWO, new Add(new Div(min_width, max_width), new Div(min_height, max_height)))
 
-    this.sca = new Sub(ONE, new Add(Lso, new Mult(new Constant(0.2), Lcd)))
-    this.isca = new Sub(ONE, new Sum(new Square(Lso), Lcenter))
-    this.fm = new Sub(ONE, new Sum(Lso, Lform, Lcenter))
+    this.sca = new Add(Lso, new Mult(new Constant(0.2), Lcd))
+    this.isca = new Sum(new Square(Lso), Lcenter)
+    this.fm = new Sum(Lso, Lform, Lcenter)
+    this.grad_gt = this.GradGtLoss()
+    this.tanh5 = this.TanhLoss(new Constant(5))
+    this.tanh100 = this.TanhLoss(new Constant(100))
+}
 
-    let pred_width_x1 = new Sub(this.pred_x2, new NoGrad(this.pred_x1))
-    let pred_width_x2 = new Sub(new NoGrad(this.pred_x2), this.pred_x1)
-    let pred_height_y1 = new Sub(this.pred_y2, new NoGrad(this.pred_y1))
-    let pred_height_y2 = new Sub(new NoGrad(this.pred_y2), this.pred_y1)
+GraphIoU.prototype.GradGtLoss = function() {
+    let real_width = new Sub(this.real_x2, this.real_x1)
+    let real_height = new Sub(this.real_y2, this.real_y1)
 
-    let w_sign = new Sign(new Sub(real_width, pred_width))
-    let h_sign = new Sign(new Sub(real_height, pred_height))
+    let dx1 = new Sub(this.real_x1, this.pred_x1)
+    let dy1 = new Sub(this.real_y1, this.pred_y1)
+    let dx2 = new Sub(this.real_x2, this.pred_x2)
+    let dy2 = new Sub(this.real_y2, this.pred_y2)
 
-    k1_x1 = new Div(new Mult(this.pred_x1, new Sub(new Mult(new Constant(0.5), this.pred_x1), new Sum(this.real_x1, new Sign(new Sub(this.real_x1, this.pred_x1))))), new Sub(new Constant(0), real_width))
-    k2_x1 = new Add(new Mult(new Sub(new NoGrad(this.pred_x2), new Sum(this.real_x1, new Sign(new Sub(this.real_x1, this.pred_x1)))), new Log(pred_width_x2)), this.pred_x1)
-    Lx1 = new Add(new Mult(new Div(new Sub(ONE, w_sign), TWO), k1_x1), new Mult(new Div(new Add(ONE, w_sign), TWO), k2_x1))
+    let k1_x1 = new Sub(new Mult(HALF, new Square(dx1)), new Mult(this.pred_x1, new Sign(dx1)))
+    let k1_x2 = new Sub(new Mult(HALF, new Square(dx2)), new Mult(this.pred_x2, new Sign(dx2)))
+    let k1_x = new Div(new Add(k1_x1, k1_x2), real_width)
 
-    k1_y1 = new Div(new Mult(this.pred_y1, new Sub(new Mult(new Constant(0.5), this.pred_y1), new Sum(this.real_y1, new Sign(new Sub(this.real_y1, this.pred_y1))))), new Sub(new Constant(0), real_height))
-    k2_y1 = new Add(new Mult(new Sub(new NoGrad(this.pred_y2), new Sum(this.real_y1, new Sign(new Sub(this.real_y1, this.pred_y1)))), new Log(pred_height_y2)), this.pred_y1)
-    Ly1 = new Add(new Mult(new Div(new Sub(ONE, h_sign), TWO), k1_y1), new Mult(new Div(new Add(ONE, h_sign), TWO), k2_y1))
+    let k1_y1 = new Sub(new Mult(HALF, new Square(dy1)), new Mult(this.pred_y1, new Sign(dy1)))
+    let k1_y2 = new Sub(new Mult(HALF, new Square(dy2)), new Mult(this.pred_y2, new Sign(dy2)))
+    let k1_y = new Div(new Add(k1_y1, k1_y2), real_height)
 
-    k1_x2 = new Div(new Mult(this.pred_x2, new Sub(new Mult(new Constant(0.5), this.pred_x2), new Sum(this.real_x2, new Sign(new Sub(this.real_x2, this.pred_x2))))), new Sub(new Constant(0), real_width))
-    k2_x2 = new Add(new Mult(new Sub(new NoGrad(this.pred_x1), new Sum(this.real_x2, new Sign(new Sub(this.real_x2, this.pred_x2)))), new Log(pred_width_x1)), this.pred_x2)
-    Lx2 = new Sub(new Mult(new Div(new Sub(ONE, w_sign), TWO), k1_x2), new Mult(new Div(new Add(ONE, w_sign), TWO), k2_x2))
+    return new Add(k1_x, k1_y)
+}
 
-    k1_y2 = new Div(new Mult(this.pred_y2, new Sub(new Mult(new Constant(0.5), this.pred_y2), new Sum(this.real_y2, new Sign(new Sub(this.real_y2, this.pred_y2))))), new Sub(new Constant(0), real_height))
-    k2_y2 = new Add(new Mult(new Sub(new NoGrad(this.pred_y1), new Sum(this.real_y2, new Sign(new Sub(this.real_y2, this.pred_y2)))), new Log(pred_height_y1)), this.pred_y2)
-    Ly2 = new Sub(new Mult(new Div(new Sub(ONE, h_sign), TWO), k1_y2), new Mult(new Div(new Add(ONE, h_sign), TWO), k2_y2))
+GraphIoU.prototype.TanhLoss = function(k) {
+    let real_width = new Sub(this.real_x2, this.real_x1)
+    let real_height = new Sub(this.real_y2, this.real_y1)
 
-    this.L_grad_fast = new Sum(Lx1, Ly1, Lx2, Ly2)
-    this.L_grad_gt = new Sum(k1_x1, k1_x2, k1_y1, k1_y2)
+    let dx1 = new Sub(this.real_x1, this.pred_x1)
+    let dy1 = new Sub(this.real_y1, this.pred_y1)
+    let dx2 = new Sub(this.real_x2, this.pred_x2)
+    let dy2 = new Sub(this.real_y2, this.pred_y2)
+
+    let k_x1 = new Add(new Mult(HALF, new Square(dx1)), new Div(new Log(new Cosh(new Mult(k, dx1))), k))
+    let k_x2 = new Add(new Mult(HALF, new Square(dx2)), new Div(new Log(new Cosh(new Mult(k, dx2))), k))
+
+    let k_y1 = new Add(new Mult(HALF, new Square(dy1)), new Div(new Log(new Cosh(new Mult(k, dy1))), k))
+    let k_y2 = new Add(new Mult(HALF, new Square(dy2)), new Div(new Log(new Cosh(new Mult(k, dy2))), k))
+
+    let Lx = new Div(new Add(k_x1, k_x2), real_width)
+    let Ly = new Div(new Add(k_y1, k_y2), real_height)
+
+    return new Add(Lx, Ly)
 }
 
 GraphIoU.prototype.GradLoss = function() {
+    let real_width = this.real_x2.value - this.real_x1.value
+    let real_height = this.real_y2.value - this.real_y1.value
+
     let dx1 = this.real_x1.value - this.pred_x1.value
     let dy1 = this.real_y1.value - this.pred_y1.value
     let dx2 = this.real_x2.value - this.pred_x2.value
     let dy2 = this.real_y2.value - this.pred_y2.value
 
+    let k = 25
+
     return {
-        loss: Lso,
-        dx1: -(Math.sign(dx1) + dx1) / min_width,
-        dy1: -(Math.sign(dy1) + dy1) / min_height,
-        dx2: -(Math.sign(dx2) + dx2) / min_width,
-        dy2: -(Math.sign(dy2) + dy2) / min_height
+        loss: Math.abs(dx1) + Math.abs(dy1) + Math.abs(dx2) + Math.abs(dy2),
+        dx1: -(Math.tanh(k * dx1) + dx1) / real_width,
+        dy1: -(Math.tanh(k * dy1) + dy1) / real_height,
+        dx2: -(Math.tanh(k * dx2) + dx2) / real_width,
+        dy2: -(Math.tanh(k * dy2) + dy2) / real_height
     }
 }
 
@@ -139,9 +162,15 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     this.pred_x2.SetValue(predBox.nx2)
     this.pred_y2.SetValue(predBox.ny2)
 
-    let loss = this.iou
+    if (iouType == 'Grad')
+        return this.GradLoss()
 
-    if (iouType == 'DIoU') {
+    let loss = null
+
+    if (iouType == 'IoU') {
+        loss = this.iou
+    }
+    else if (iouType == 'DIoU') {
         loss = this.diou
     }
     else if (iouType == 'CIoU') {
@@ -159,24 +188,26 @@ GraphIoU.prototype.Evaluate = function(realBox, predBox, scale, iouType) {
     else if (iouType == 'FM') {
         loss = this.fm
     }
-    else if (iouType == 'L_grad_fast') {
-        loss = this.L_grad_fast
+    else if (iouType == 'gradGT') {
+        loss = this.grad_gt
     }
-    else if (iouType == 'L_grad_gt') {
-        loss = this.L_grad_gt
+    else if (iouType == 'tanh5') {
+        loss = this.tanh5
     }
-    else if (iouType == 'Grad') {
-        return this.GradLoss()
+    else if (iouType == 'tanh100') {
+        loss = this.tanh100
     }
+    else
+        throw "unknown loss '" + iouType + "'"
 
     let L = loss.Forward()
     loss.Backward(scale)
 
     return {
-        loss: 1 - L,
-        dx1: -this.pred_x1.grad,
-        dx2: -this.pred_x2.grad,
-        dy1: -this.pred_y1.grad,
-        dy2: -this.pred_y2.grad,
+        loss: L,
+        dx1: this.pred_x1.grad,
+        dx2: this.pred_x2.grad,
+        dy1: this.pred_y1.grad,
+        dy2: this.pred_y2.grad,
     }
 }
