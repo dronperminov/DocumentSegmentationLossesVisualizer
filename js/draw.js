@@ -151,9 +151,9 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
-    let losses = this.iouTypes.map((iouType) => this.loss.Evaluate(real, pred, 1, iouType))
+    let losses = this.coordNames.map((coordName) => this.loss.Evaluate(real, pred, 1, coordName))
 
-    let header = `<tr><th>Тип</th>${this.iouTypes.map((iouType) => '<th>L<sub>' + iouType + '</sub></th>').join('')}</tr>`
+    let header = `<tr><th>Тип</th>${this.coordNames.map((coordName) => '<th>L<sub>' + coordName + '</sub></th>').join('')}</tr>`
     let direct = `<tr><td>L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(v.loss) + '"></span> ' + this.Round(v.loss) + '</td>').join('')}</tr>`
     let inverse = `<tr><td>1 - L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(1 - v.loss) + '"></span> ' + this.Round(1 - v.loss) + '</td>').join('')}</tr>`
     let dx1 = `<tr><td>∂L/∂x<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx1) + '</td>').join('')}</tr>`
@@ -166,30 +166,24 @@ Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakePixelMetricTable = function(real, pred) {
-    if (['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA'].indexOf(this.coordBox.value) == -1)
-        return
-
+    let coordLoss = 1 - this.loss.Evaluate(real, pred, 1, this.coordNameBox.value).loss
     let losses = this.GetLosses(real, pred)
-    let baseLosses = ['PIoU', 'BWIoU', 'Weighted BWIoU']
+    let baseMetrics = ['PIoU', 'BWIoU', 'Weighted BWIoU']
 
     let modifications = [
-        { name: 'F', value: function(loss) { return loss }, need: () => true },
-        { name: `F × ${this.coordBox.value}`, value: function(loss) { return loss * losses.iou }, need: () => true },
-        { name: `(F + 1 - IoU) × ${this.coordBox.value}<br>(champion)`, value: function(loss) { return (loss + 1 - losses.iou_clear) * losses.iou }, need: () => true },
-        { name: `(F + 1 - ${this.coordBox.value}) × ${this.coordBox.value}<br>(champion 2)`, value: function(loss) { return (loss + 1 - losses.iou) * losses.iou }, need: () => this.coordBox.value != 'IoU' },
+        { name: 'F', value: function(loss) { return loss } },
+        { name: `F × ${this.coordNameBox.value}`, value: function(loss) { return loss * coordLoss } },
+        { name: `(F + 1 - ${this.coordNameBox.value}) × ${this.coordNameBox.value}<br>(champion)`, value: function(loss) { return (loss + 1 - coordLoss) * coordLoss } },
     ]
 
-    let header = `<tr><th>Тип</th>${baseLosses.map((loss) => '<th>' + loss + '</th>').join('')}</tr>`
+    let header = `<tr><th>Тип</th>${baseMetrics.map((loss) => '<th>' + loss + '</th>').join('')}</tr>`
     let values = []
 
     for (let mod of modifications) {
-        if (!mod.need())
-            continue
-
         let row = `<tr><td>${mod.name}</td>`
 
-        for (let loss of baseLosses) {
-            let name = loss.toLowerCase().replace(/ /gi, '_')
+        for (let metric of baseMetrics) {
+            let name = metric.toLowerCase().replace(/ /gi, '_')
             let value = mod.value(losses[name])
             row += `<td><span class="box" style="background: ${this.LossToColor(1 - value)}"></span> ${this.Round(value)}</td>`
         }

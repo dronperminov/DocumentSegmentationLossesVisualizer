@@ -1,4 +1,4 @@
-function Visualizer(canvasId, imagesSrc, iouTypes) {
+function Visualizer(canvasId, imagesSrc, coordNames) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
 
@@ -7,7 +7,7 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
     this.controls = document.getElementById('image-controls')
     this.thresholdBox = document.getElementById('threshold-controls')
     this.randomCountBox = document.getElementById('random-count-box')
-    this.coordBox = document.getElementById('coord-box')
+    this.coordNameBox = document.getElementById('coord-name-box')
     this.optimizeBtn = document.getElementById('optimize-btn')
     this.optimizeCoordBtn = document.getElementById('optimize-coord-btn')
 
@@ -21,8 +21,8 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
         'dy2': document.getElementById('dy2-box'),
     }
 
-    this.iouTypes = iouTypes
-    this.loss = new GraphIoU()
+    this.coordNames = coordNames
+    this.loss = new GraphLoss()
 
     this.InitControls()
     this.Reset()
@@ -57,8 +57,8 @@ Visualizer.prototype.InitControls = function() {
     for (let i = 0; i < this.imagesSrc.length; i++)
         this.AddOption(this.controls, this.imagesSrc[i])
 
-    for (let iouType of this.iouTypes)
-        this.AddOption(this.coordBox, iouType)
+    for (let coordName of this.coordNames)
+        this.AddOption(this.coordNameBox, coordName)
 
     this.controls.addEventListener('change', () => this.ChangeImage(this.controls.value))
 
@@ -161,7 +161,7 @@ Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
     let info = real.GetInfo(pred, data, this.threshold)
 
     let iou_clear = real.IoU(pred)
-    let iou = real.IoU(pred, this.coordBox.value)
+    let iou = real.IoU(pred, this.coordNameBox.value)
 
     let piou = PIoU(info)
     let bwiou = BWIoU(info)
@@ -173,13 +173,9 @@ Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
     let bwiou_iou = scale * bwiou
     let weighted_bwiou_iou = scale * weighted_bwiou
 
-    let piou_champion = scale * (piou + 1 - iou_clear)
-    let bwiou_champion = scale * (bwiou + 1 - iou_clear)
-    let weighted_bwiou_champion = scale * (weighted_bwiou + 1 - iou_clear)
-
-    let piou_champion2 = scale * (piou + 1 - iou)
-    let bwiou_champion2 = scale * (bwiou + 1 - iou)
-    let weighted_bwiou_champion2 = scale * (weighted_bwiou + 1 - iou)
+    let piou_champion = scale * (piou + 1 - iou)
+    let bwiou_champion = scale * (bwiou + 1 - iou)
+    let weighted_bwiou_champion = scale * (weighted_bwiou + 1 - iou)
 
     iou = scale
 
@@ -188,7 +184,6 @@ Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
         piou, bwiou, weighted_bwiou,
         piou_iou,  bwiou_iou, weighted_bwiou_iou,
         piou_champion, bwiou_champion, weighted_bwiou_champion,
-        piou_champion2, bwiou_champion2, weighted_bwiou_champion2
     }
 }
 
@@ -218,15 +213,6 @@ Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false)
 
     if (name == 'Weighted BWIoU (champion)')
         return losses.weighted_bwiou_champion
-
-    if (name == 'PIoU (champion 2)')
-        return losses.piou_champion2
-
-    if (name == 'BWIoU (champion 2)')
-        return losses.bwiou_champion2
-
-    if (name == 'Weighted BWIoU (champion 2)')
-        return losses.weighted_bwiou_champion2
 
     throw "unknown loss '" + name + '"'
 }
@@ -269,11 +255,11 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
 
     let names = []
     let lossNames = []
-    let iouTypes = []
+    let coordNames = []
 
     if (compareCoordinateLosses) {
-        iouTypes = this.iouTypes.filter((v) => v != 'IoU')
-        names = iouTypes
+        coordNames = this.coordNames.filter((v) => v != 'IoU')
+        names = coordNames
         lossNames = names.map((v) => 'IoU')
     }
     else {
@@ -283,14 +269,8 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
             'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
         ]
 
-        if (this.coordBox.value != 'IoU') {
-            names.push('PIoU (champion 2)')
-            names.push('BWIoU (champion 2)')
-            names.push('Weighted BWIoU (champion 2)')
-        }
-
         lossNames = names
-        iouTypes = lossNames.map((v) => this.coordBox.value)
+        coordNames = lossNames.map((v) => this.coordNameBox.value)
     }
 
     let data = {}
@@ -304,7 +284,7 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
         data[key] = {
             pred: [],
             lossName: lossNames[i],
-            iouType: iouTypes[i],
+            coordName: coordNames[i],
             color: color,
 
             lossValues: [],
@@ -359,7 +339,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
     let t0 = performance.now()
     for (let key of Object.keys(data)) {
         let predBoxes = data[key].pred
-        let iouType = data[key].iouType
+        let coordName = data[key].coordName
         let errorValues = data[key].errorValues
         let avg_loss = 0
         let avg_error = 0
@@ -369,7 +349,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
         for (let j = 0; j < predBoxes.length; j++) {
             let index = this.GetOptimalRealBox(predBoxes[j], realBoxes)
             let scale = this.GetLossByName(realBoxes[index], predBoxes[j], data[key].lossName, true)
-            let loss = this.loss.Evaluate(realBoxes[index], predBoxes[j], scale, iouType)
+            let loss = this.loss.Evaluate(realBoxes[index], predBoxes[j], scale, coordName)
 
             losses[key][j] = loss
 

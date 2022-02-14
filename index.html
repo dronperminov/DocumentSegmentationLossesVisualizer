@@ -15,7 +15,7 @@
             <div class="controls">
                 <label>Изображение: <select id="image-controls"></select></label><br>
                 <label>Порог тёмных пикселей: <input type="number" step="1" min="1" max="255" value="128" id="threshold-controls"></label><br>
-                <label>Тип координатной функции: <select id="coord-box"></select></label><br>
+                <label>Тип координатной функции: <select id="coord-name-box"></select></label><br>
                 <label>Количество случайных bbox'ов: <input type="number" step="1" min="0" max="20" value="0" id="random-count-box"></label><br>
                 <button id="optimize-btn">Запустить сравнение функций потерь</button>
                 <button id="optimize-coord-btn">Запустить сравнение координатных функций потерь</button>
@@ -44,7 +44,7 @@
     <script src="js/events.js"></script>
     <script src="js/draw.js"></script>
     <script src="js/graph.js"></script>
-    <script src="js/graph_iou.js"></script>
+    <script src="js/graph_loss.js"></script>
     <script src="js/metrics.js"></script>
 
     <script>
