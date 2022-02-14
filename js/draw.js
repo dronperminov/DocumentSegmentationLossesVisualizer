@@ -40,7 +40,7 @@ Visualizer.prototype.DrawTextLine = function(x1, y1, x2, y2, text, color, t = 0.
 Visualizer.prototype.DrawBboxes = function() {
     for (let bbox of this.bboxes) {
         if (bbox != this.activeBox) {
-            bbox.Draw(this.ctx, false, this.visualizeLoss != 'none' || this.bboxes.length > 2)
+            bbox.Draw(this.ctx, false, this.bboxes.length > 2)
         }
 
         if (bbox.IsMouseHover(this.currPoint.x, this.currPoint.y)) {
@@ -49,7 +49,7 @@ Visualizer.prototype.DrawBboxes = function() {
     }
 
     if (this.activeBox != null) {
-        this.activeBox.Draw(this.ctx, true, this.visualizeLoss != 'none')
+        this.activeBox.Draw(this.ctx, true)
     }
 }
 
@@ -150,30 +150,33 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
     this.metrics.innerHTML += `<table>${tableBoxes}${tableIntersection}</table><hr>`
 }
 
-Visualizer.prototype.MakeIouTable = function(real, pred) {
-    let losses = this.iouTypes.map((iouType) => this.iou.Evaluate(real, pred, 1, iouType))
+Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
+    let losses = this.iouTypes.map((iouType) => this.loss.Evaluate(real, pred, 1, iouType))
 
-    let header = `<tr><th>Тип</th>${this.iouTypes.map((iouType) => '<th>' + iouType + '</th>').join('')}</tr>`
-    let direct = `<tr><td>L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(1 - v.loss) + '"></span> ' + this.Round(1 - v.loss) + '</td>').join('')}</tr>`
-    let inverse = `<tr><td>1 - L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(v.loss) + '"></span> ' + this.Round(v.loss) + '</td>').join('')}</tr>`
+    let header = `<tr><th>Тип</th>${this.iouTypes.map((iouType) => '<th>L<sub>' + iouType + '</sub></th>').join('')}</tr>`
+    let direct = `<tr><td>L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(v.loss) + '"></span> ' + this.Round(v.loss) + '</td>').join('')}</tr>`
+    let inverse = `<tr><td>1 - L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(1 - v.loss) + '"></span> ' + this.Round(1 - v.loss) + '</td>').join('')}</tr>`
     let dx1 = `<tr><td>∂L/∂x<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx1) + '</td>').join('')}</tr>`
     let dy1 = `<tr><td>∂L/∂y<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dy1) + '</td>').join('')}</tr>`
     let dx2 = `<tr><td>∂L/∂x<sub>2</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx2) + '</td>').join('')}</tr>`
     let dy2 = `<tr><td>∂L/∂y<sub>2</sub></td>${losses.map((v) => '<td>' + this.Round(v.dy2) + '</td>').join('')}</tr>`
 
-    this.metrics.innerHTML += '<i>Значения различных видов IoU</i>'
+    this.metrics.innerHTML += '<b>Координатные функции потерь (L):</b> [0, +∞), меньшие значения лучше'
     this.metrics.innerHTML += `<table>${header}${direct}${inverse}${dx1}${dy1}${dx2}${dy2}</table>`
 }
 
-Visualizer.prototype.MakeLossTable = function(real, pred) {
+Visualizer.prototype.MakePixelMetricTable = function(real, pred) {
+    if (['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA'].indexOf(this.coordBox.value) == -1)
+        return
+
     let losses = this.GetLosses(real, pred)
     let baseLosses = ['PIoU', 'BWIoU', 'Weighted BWIoU']
 
     let modifications = [
-        { name: 'L', value: function(loss) { return loss }, need: () => true },
-        { name: `L × ${this.iouBox.value}`, value: function(loss) { return loss * losses.iou }, need: () => true },
-        { name: `(L + 1 - IoU) × ${this.iouBox.value}<br>(champion)`, value: function(loss) { return (loss + 1 - losses.iou_clear) * losses.iou }, need: () => true },
-        { name: `(L + 1 - ${this.iouBox.value}) × ${this.iouBox.value}<br>(champion 2)`, value: function(loss) { return (loss + 1 - losses.iou) * losses.iou }, need: () => this.iouBox.value != 'IoU' },
+        { name: 'F', value: function(loss) { return loss }, need: () => true },
+        { name: `F × ${this.coordBox.value}`, value: function(loss) { return loss * losses.iou }, need: () => true },
+        { name: `(F + 1 - IoU) × ${this.coordBox.value}<br>(champion)`, value: function(loss) { return (loss + 1 - losses.iou_clear) * losses.iou }, need: () => true },
+        { name: `(F + 1 - ${this.coordBox.value}) × ${this.coordBox.value}<br>(champion 2)`, value: function(loss) { return (loss + 1 - losses.iou) * losses.iou }, need: () => this.coordBox.value != 'IoU' },
     ]
 
     let header = `<tr><th>Тип</th>${baseLosses.map((loss) => '<th>' + loss + '</th>').join('')}</tr>`
@@ -188,13 +191,13 @@ Visualizer.prototype.MakeLossTable = function(real, pred) {
         for (let loss of baseLosses) {
             let name = loss.toLowerCase().replace(/ /gi, '_')
             let value = mod.value(losses[name])
-            row += `<td><span class="box" style="background: ${this.LossToColor(value)}"></span> ${this.Round(value)}</td>`
+            row += `<td><span class="box" style="background: ${this.LossToColor(1 - value)}"></span> ${this.Round(value)}</td>`
         }
 
         values.push(row + `</tr>`)
     }
 
-    this.metrics.innerHTML += '<hr><i>Функции потерь:</i><br>'
+    this.metrics.innerHTML += '<hr><b>Пиксельные метрики (F):</b> (-∞, 1], большие значения лучше'
     this.metrics.innerHTML += `<table>${header}${values.join('\n')}</table>`
 }
 
@@ -214,8 +217,8 @@ Visualizer.prototype.DrawLoss = function() {
     pred = pred[0]
 
     this.MakeBoxesTable(real, pred)
-    this.MakeIouTable(real, pred)
-    this.MakeLossTable(real, pred)
+    this.MakeCoordinateLossesTable(real, pred)
+    this.MakePixelMetricTable(real, pred)
 }
 
 Visualizer.prototype.Map = function(x, in_min, in_max, out_min, out_max) {
@@ -225,42 +228,23 @@ Visualizer.prototype.Map = function(x, in_min, in_max, out_min, out_max) {
 Visualizer.prototype.LossToColor = function(loss) {
     let color
 
-    if (loss >= 0.9)
-        color = this.Map(loss, 0.9, 1, 90, 120)
-    else if (loss >= 0.5)
-        color = this.Map(loss, 0.5, 0.9, 60, 90)
+    if (loss <= 0.1)
+        color = this.Map(loss, 0, 0.1, 120, 90)
+    else if (loss <= 0.5)
+        color = this.Map(loss, 0.1, 0.5, 90, 60)
+    else if (loss <= 1)
+        color = this.Map(loss, 0.5, 1, 60, 0)
+    else if (loss <= 2)
+        color = this.Map(loss, 1, 2, 0, -60)
     else
-        color = this.Map(loss, 0, 0.5, 0, 60)
+        color = 300
 
     return `hsla(${color}, 80%, 50%, 70%)`
-}
-
-Visualizer.prototype.VisualizeAreas = function() {
-    let real = this.GetBoxesByColor(BBOX_REAL_COLOR)[0]
-    let pred = this.GetBoxesByColor(BBOX_PRED_COLOR)[0]
-    let int = pred.Intersection(real)
-
-    if (int == null)
-        return
-
-    let loss = this.GetLossByName(real, pred, this.visualizeLoss)
-
-    this.ctx.fillStyle = this.LossToColor(loss)
-    this.ctx.fillRect(int.x1, int.y1, int.x2 - int.x1, int.y2 - int.y1)
-
-    this.ctx.fillStyle = `#000`
-    this.ctx.textAlign = 'center'
-    this.ctx.textBaseline = 'middle'
-    this.ctx.font = '16px Arial'
-    this.ctx.fillText(`${this.visualizeLoss} = ${this.Round(loss)}`, (int.x1 + int.x2) / 2, (int.y1 + int.y2) / 2)
 }
 
 Visualizer.prototype.Draw = function() {
     this.Clear()
     this.DrawLoss()
-
-    if (this.CanVisualizeAreas() && this.visualizeLoss != 'none')
-        this.VisualizeAreas()
 
     this.DrawBboxes()
     this.DrawBboxesInfo()

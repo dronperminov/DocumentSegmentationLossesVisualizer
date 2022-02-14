@@ -40,14 +40,6 @@ Visualizer.prototype.KeyDown = function(e) {
     e.preventDefault()
 }
 
-Visualizer.prototype.CanAddBbox = function(color) {
-    return true
-}
-
-Visualizer.prototype.CanVisualizeAreas = function() {
-    return this.bboxes.length == 2 && this.bboxes[0].color != this.bboxes[1].color
-}
-
 Visualizer.prototype.MouseDown = function(e) {
     let x = e.offsetX
     let y = e.offsetY
@@ -59,11 +51,8 @@ Visualizer.prototype.MouseDown = function(e) {
 
     if (this.activeBox == null) {
         let color = e.button == 2 ? BBOX_PRED_COLOR : BBOX_REAL_COLOR
-
-        if (this.CanAddBbox(color)) {
-            this.activeBox = new BoundingBox(x, y, x, y, color, this.imageWidth, this.imageHeight)
-            this.action = ACTION_CREATE
-        }
+        this.activeBox = new BoundingBox(x, y, x, y, color, this.imageWidth, this.imageHeight)
+        this.action = ACTION_CREATE
     }
     else if (this.activeBox.IsResize(this.currPoint.x, this.currPoint.y)) {
         this.action = ACTION_RESIZE

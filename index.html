@@ -15,25 +15,10 @@
             <div class="controls">
                 <label>Изображение: <select id="image-controls"></select></label><br>
                 <label>Порог тёмных пикселей: <input type="number" step="1" min="1" max="255" value="128" id="threshold-controls"></label><br>
-                <label>Тип IoU: <select id="iou-box"></select></label><br>
+                <label>Тип координатной функции: <select id="coord-box"></select></label><br>
                 <label>Количество случайных bbox'ов: <input type="number" step="1" min="0" max="20" value="0" id="random-count-box"></label><br>
-                <label>Рисовать области для:
-                    <select id="visualize-loss-areas">
-                        <option value='none' selected>не визуализировать</option>
-                        <option value='IoU'>IoU</option>
-                        <option value='PIoU'>PIoU</option>
-                        <option value='BWIoU'>BWIoU</option>
-                        <option value='Weighted BWIoU'>Weighted BWIoU</option>
-                        <option value='PIoU (champion)'>PIoU (champion)</option>
-                        <option value='BWIoU (champion)'>BWIoU (champion)</option>
-                        <option value='Weighted BWIoU (champion)'>Weighted BWIoU (champion)</option>
-                        <option value='PIoU (champion 2)'>PIoU (champion 2)</option>
-                        <option value='BWIoU (champion 2)'>BWIoU (champion 2)</option>
-                        <option value='Weighted BWIoU (champion 2)'>Weighted BWIoU (champion 2)</option>
-                    </select>
-                </label><br>
-                <button id="optimize-btn">Запустить</button>
-                <button id="optimize-iou-btn">Запустить сравнение IoU</button>
+                <button id="optimize-btn">Запустить сравнение функций потерь</button>
+                <button id="optimize-coord-btn">Запустить сравнение координатных функций потерь</button>
                 <hr>
             </div>
             <div id="metrics"></div>
@@ -64,7 +49,7 @@
 
     <script>
         let images = ['images/im4.jpg', 'images/im7.jpg', 'images/im23.jpg', 'images/im24.jpg', 'images/im54.jpg', 'images/im94.jpg']
-        let iouTypes = ['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA', 'ISCA', 'FM', 'L_grad_fast', 'L_grad_gt', 'Grad']
+        let iouTypes = ['IoU', 'DIoU', 'CIoU', 'GIoU', 'SCA', 'ISCA', 'FM', 'gradGT', 'tanh5', 'tanh100']
         let visualizer = new Visualizer('canvas', images, iouTypes)
 
         setInterval(() => visualizer.Draw(), 10)

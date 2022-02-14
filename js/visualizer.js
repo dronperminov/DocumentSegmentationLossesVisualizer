@@ -7,10 +7,9 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
     this.controls = document.getElementById('image-controls')
     this.thresholdBox = document.getElementById('threshold-controls')
     this.randomCountBox = document.getElementById('random-count-box')
-    this.iouBox = document.getElementById('iou-box')
-    this.visualizeAreasBox = document.getElementById('visualize-loss-areas')
+    this.coordBox = document.getElementById('coord-box')
     this.optimizeBtn = document.getElementById('optimize-btn')
-    this.optimizeIoUBtn = document.getElementById('optimize-iou-btn')
+    this.optimizeCoordBtn = document.getElementById('optimize-coord-btn')
 
     this.plotBox = document.getElementById('plot-box')
     this.lossesCanvas = document.getElementById('losses-box')
@@ -23,7 +22,7 @@ function Visualizer(canvasId, imagesSrc, iouTypes) {
     }
 
     this.iouTypes = iouTypes
-    this.iou = new GraphIoU()
+    this.loss = new GraphIoU()
 
     this.InitControls()
     this.Reset()
@@ -59,24 +58,17 @@ Visualizer.prototype.InitControls = function() {
         this.AddOption(this.controls, this.imagesSrc[i])
 
     for (let iouType of this.iouTypes)
-        this.AddOption(this.iouBox, iouType)
+        this.AddOption(this.coordBox, iouType)
 
     this.controls.addEventListener('change', () => this.ChangeImage(this.controls.value))
-
-    this.visualizeLoss = this.visualizeAreasBox.value
-    this.visualizeAreasBox.addEventListener('change', () => this.ChangeVisualizeLoss())
 
     this.threshold = +this.thresholdBox.value
     this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; })
 
     this.optimizeBtn.addEventListener('click', () => this.Optimize())
-    this.optimizeIoUBtn.addEventListener('click', () => this.Optimize(true))
+    this.optimizeCoordBtn.addEventListener('click', () => this.Optimize(true))
 
     this.plotBox.style.display = 'none'
-}
-
-Visualizer.prototype.ChangeVisualizeLoss = function() {
-    this.visualizeLoss = this.visualizeAreasBox.value
 }
 
 Visualizer.prototype.InitEvents = function() {
@@ -169,7 +161,7 @@ Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
     let info = real.GetInfo(pred, data, this.threshold)
 
     let iou_clear = real.IoU(pred)
-    let iou = real.IoU(pred, this.iouBox.value)
+    let iou = real.IoU(pred, this.coordBox.value)
 
     let piou = PIoU(info)
     let bwiou = BWIoU(info)
@@ -263,64 +255,68 @@ Visualizer.prototype.RandomBox = function(color) {
     return new BoundingBox(x1, y1, x2, y2, color, this.imageWidth, this.imageHeight, true)
 }
 
-Visualizer.prototype.Optimize = function(compareIoU = false, alpha = 0.0005) {
-    this.RemoveOptimizedBoxes()
-
-    let predBoxes = this.GetBoxesByColor(BBOX_PRED_COLOR)
-    let data = {}
-
+Visualizer.prototype.GetRandomBoxes = function(count) {
     let randomBoxes = []
 
-    for (let i = 0; i < +this.randomCountBox.value; i++)
+    for (let i = 0; i < count; i++)
         randomBoxes.push(this.RandomBox(BBOX_PRED_COLOR))
 
-    if (this.visualizeLoss == 'none') {
-        let names = []
-        let lossNames = []
-        let iouTypes = []
+    return randomBoxes
+}
 
-        if (compareIoU) {
-            iouTypes = this.iouTypes.filter((v) => v != 'IoU')
-            names = iouTypes
-            lossNames = names.map((v) => 'IoU')
-        }
-        else {
-            names = [
-                'IoU',
-                'PIoU', 'BWIoU', 'Weighted BWIoU',
-                'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
-            ]
+Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha = 0.0005) {
+    this.RemoveOptimizedBoxes()
 
-            if (this.iouBox.value != 'IoU') {
-                names.push('PIoU (champion 2)')
-                names.push('BWIoU (champion 2)')
-                names.push('Weighted BWIoU (champion 2)')
-            }
+    let names = []
+    let lossNames = []
+    let iouTypes = []
 
-            lossNames = names
-            iouTypes = lossNames.map((v) => this.iouBox.value)
-        }
-
-        for (let i = 0; i < names.length; i++) {
-            let color = this.Map(i, 0, names.length - 1, LOSS_COLOR_START, LOSS_COLOR_END)
-
-            data[names[i]] = { pred: [], lossName: lossNames[i], iouType: iouTypes[i], color: color }
-
-            for (let box of predBoxes) {
-                box = box.Copy(names[i], color)
-                data[names[i]].pred.push(box)
-                this.bboxes.push(box)
-            }
-        }
+    if (compareCoordinateLosses) {
+        iouTypes = this.iouTypes.filter((v) => v != 'IoU')
+        names = iouTypes
+        lossNames = names.map((v) => 'IoU')
     }
     else {
-        data[`${this.visualizeLoss} (${this.iouBox.value})`] = { pred: predBoxes, lossName: this.visualizeLoss, iouType: this.iouBox.value, color: BBOX_PRED_COLOR }
+        names = [
+            'IoU',
+            'PIoU', 'BWIoU', 'Weighted BWIoU',
+            'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
+        ]
+
+        if (this.coordBox.value != 'IoU') {
+            names.push('PIoU (champion 2)')
+            names.push('BWIoU (champion 2)')
+            names.push('Weighted BWIoU (champion 2)')
+        }
+
+        lossNames = names
+        iouTypes = lossNames.map((v) => this.coordBox.value)
     }
 
-    for (let key of Object.keys(data)) {
-        data[key].lossValues = []
-        data[key].errorValues = []
-        data[key].gradValues = { 'dx1': [], 'dy1': [], 'dx2': [], 'dy2': [] }
+    let data = {}
+    let predBoxes = this.GetBoxesByColor(BBOX_PRED_COLOR)
+    let randomBoxes = this.GetRandomBoxes(+this.randomCountBox.value)
+
+    for (let i = 0; i < names.length; i++) {
+        let key = names[i]
+        let color = this.Map(i, 0, names.length - 1, LOSS_COLOR_START, LOSS_COLOR_END)
+
+        data[key] = {
+            pred: [],
+            lossName: lossNames[i],
+            iouType: iouTypes[i],
+            color: color,
+
+            lossValues: [],
+            errorValues: [],
+            gradValues: { 'dx1': [], 'dy1': [], 'dx2': [], 'dy2': [] }
+        }
+
+        for (let box of predBoxes) {
+            box = box.Copy(key, color)
+            data[key].pred.push(box)
+            this.bboxes.push(box)
+        }
 
         for (let box of randomBoxes) {
             box = box.Copy(key, data[key].color)
@@ -373,7 +369,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
         for (let j = 0; j < predBoxes.length; j++) {
             let index = this.GetOptimalRealBox(predBoxes[j], realBoxes)
             let scale = this.GetLossByName(realBoxes[index], predBoxes[j], data[key].lossName, true)
-            let loss = this.iou.Evaluate(realBoxes[index], predBoxes[j], scale, iouType)
+            let loss = this.loss.Evaluate(realBoxes[index], predBoxes[j], scale, iouType)
 
             losses[key][j] = loss
 
@@ -420,8 +416,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
         let predBoxes = data[key].pred
 
         for (let j = 0; j < predBoxes.length; j++) {
-            if (this.visualizeLoss == 'none')
-                predBoxes[j].name = `${key} = ${this.Round(losses[key][j].loss)}`
+            predBoxes[j].name = `${key} = ${this.Round(losses[key][j].loss)}`
 
             predBoxes[j].nx1 -= alpha * losses[key][j].dx1
             predBoxes[j].nx2 -= alpha * losses[key][j].dx2
