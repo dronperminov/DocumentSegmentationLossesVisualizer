@@ -24,9 +24,6 @@ function Visualizer(canvasId, imagesSrc, coordNames, pixelNames) {
     this.coordNames = coordNames
     this.pixelNames = pixelNames
 
-    this.loss = new GraphLoss()
-    this.pixelMetrics = new PixelMetrics()
-
     this.InitControls()
     this.Reset()
 
@@ -46,6 +43,8 @@ Visualizer.prototype.LoadImage = function() {
         this.Reset()
 
         this.pixelsData = new PixelsData(this.ctx, image, this.imageWidth, this.imageHeight, this.threshold)
+        this.pixelMetrics = new PixelMetrics()
+        this.loss = new GraphPixelLoss(this.pixelNames, this.pixelsData, this.pixelMetrics)
     }
 
     return image
@@ -166,66 +165,6 @@ Visualizer.prototype.RestoreBboxes = function(data) {
     }
 }
 
-Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
-    let info = real.GetInfo(pred, this.pixelsData)
-
-    let iou_clear = real.IoU(pred)
-    let iou = real.IoU(pred, this.coordNameBox.value)
-
-    let piou = PIoU(info)
-    let bwiou = BWIoU(info)
-    let weighted_bwiou = WeightedBWIoU(info)
-
-    let scale = isScale ? 1 : iou
-
-    let piou_iou = scale * piou
-    let bwiou_iou = scale * bwiou
-    let weighted_bwiou_iou = scale * weighted_bwiou
-
-    let piou_champion = scale * (piou + 1 - iou)
-    let bwiou_champion = scale * (bwiou + 1 - iou)
-    let weighted_bwiou_champion = scale * (weighted_bwiou + 1 - iou)
-
-    iou = scale
-
-    return {
-        iou, iou_clear,
-        piou, bwiou, weighted_bwiou,
-        piou_iou,  bwiou_iou, weighted_bwiou_iou,
-        piou_champion, bwiou_champion, weighted_bwiou_champion,
-    }
-}
-
-Visualizer.prototype.GetLossByName = function(real, pred, name, isScale = false) {
-    if (name == 'IoU' && isScale)
-        return 1
-
-    let losses = this.GetLosses(real, pred, isScale)
-
-    if (name == 'IoU')
-        return losses.iou
-
-    if (name == 'PIoU')
-        return losses.piou
-
-    if (name == 'BWIoU')
-        return losses.bwiou
-
-    if (name == 'Weighted BWIoU')
-        return losses.weighted_bwiou
-
-    if (name == 'PIoU (champion)')
-        return losses.piou_champion
-
-    if (name == 'BWIoU (champion)')
-        return losses.bwiou_champion
-
-    if (name == 'Weighted BWIoU (champion)')
-        return losses.weighted_bwiou_champion
-
-    throw "unknown loss '" + name + '"'
-}
-
 Visualizer.prototype.RemoveOptimizedBoxes = function() {
     let cleared = []
 
@@ -263,23 +202,23 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
     this.RemoveOptimizedBoxes()
 
     let names = []
-    let lossNames = []
+    let pixelNames = []
     let coordNames = []
 
     if (compareCoordinateLosses) {
-        coordNames = this.coordNames.filter((v) => v != 'IoU')
-        names = coordNames
-        lossNames = names.map((v) => 'IoU')
+        names = this.coordNames.filter((v) => v != 'IoU')
+        coordNames = names
+        pixelNames = names.map((v) => '')
     }
     else {
         names = [
-            'IoU',
+            this.coordNameBox.value,
             'PIoU', 'BWIoU', 'Weighted BWIoU',
             'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
         ]
 
-        lossNames = names
-        coordNames = lossNames.map((v) => this.coordNameBox.value)
+        coordNames = names.map((v) => this.coordNameBox.value)
+        pixelNames = names.map((v) => v == this.coordNameBox.value ? '' : v)
     }
 
     let data = {}
@@ -292,7 +231,7 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
 
         data[key] = {
             pred: [],
-            lossName: lossNames[i],
+            pixelName: pixelNames[i],
             coordName: coordNames[i],
             color: color,
 
@@ -348,7 +287,6 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
     let t0 = performance.now()
     for (let key of Object.keys(data)) {
         let predBoxes = data[key].pred
-        let coordName = data[key].coordName
         let errorValues = data[key].errorValues
         let avg_loss = 0
         let avg_error = 0
@@ -357,8 +295,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
 
         for (let j = 0; j < predBoxes.length; j++) {
             let index = this.GetOptimalRealBox(predBoxes[j], realBoxes)
-            let scale = this.GetLossByName(realBoxes[index], predBoxes[j], data[key].lossName, true)
-            let loss = this.loss.Evaluate(realBoxes[index], predBoxes[j], scale, coordName)
+            let loss = this.loss.Evaluate(realBoxes[index], predBoxes[j], data[key].coordName, data[key].pixelName)
 
             losses[key][j] = loss
 

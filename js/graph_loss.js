@@ -151,7 +151,7 @@ GraphLoss.prototype.GradLoss = function() {
     }
 }
 
-GraphLoss.prototype.Evaluate = function(realBox, predBox, scale, name) {
+GraphLoss.prototype.Evaluate = function(realBox, predBox, name) {
     this.real_x1.SetValue(realBox.nx1)
     this.real_y1.SetValue(realBox.ny1)
     this.real_x2.SetValue(realBox.nx2)
@@ -201,13 +201,13 @@ GraphLoss.prototype.Evaluate = function(realBox, predBox, scale, name) {
         throw "unknown loss '" + name + "'"
 
     let L = loss.Forward()
-    loss.Backward(scale)
+    loss.Backward(1)
 
     return {
         loss: L,
         dx1: this.pred_x1.grad,
-        dx2: this.pred_x2.grad,
         dy1: this.pred_y1.grad,
+        dx2: this.pred_x2.grad,
         dy2: this.pred_y2.grad,
     }
 }

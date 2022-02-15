@@ -150,7 +150,7 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
-    let losses = this.coordNames.map((coordName) => this.loss.Evaluate(real, pred, 1, coordName))
+    let losses = this.coordNames.map((coordName) => this.loss.Evaluate(real, pred, coordName))
 
     let header = `<tr><th>Тип</th>${this.coordNames.map((coordName) => '<th>L<sub>' + coordName + '</sub></th>').join('')}</tr>`
     let direct = `<tr><td>L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(v.loss) + '"></span> ' + this.Round(v.loss) + '</td>').join('')}</tr>`
@@ -165,7 +165,7 @@ Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakePixelMetricTable = function(real, pred) {
-    let coordLoss = 1 - this.loss.Evaluate(real, pred, 1, this.coordNameBox.value).loss
+    let coordLoss = 1 - this.loss.Evaluate(real, pred, this.coordNameBox.value).loss
     let info = real.GetInfo(pred, this.pixelsData)
 
     let modifications = [
