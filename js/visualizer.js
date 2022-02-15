@@ -1,4 +1,4 @@
-function Visualizer(canvasId, imagesSrc, coordNames) {
+function Visualizer(canvasId, imagesSrc, coordNames, pixelNames) {
     this.canvas = document.getElementById(canvasId)
     this.ctx = this.canvas.getContext('2d')
 
@@ -22,7 +22,10 @@ function Visualizer(canvasId, imagesSrc, coordNames) {
     }
 
     this.coordNames = coordNames
+    this.pixelNames = pixelNames
+
     this.loss = new GraphLoss()
+    this.pixelMetrics = new PixelMetrics()
 
     this.InitControls()
     this.Reset()
@@ -41,6 +44,8 @@ Visualizer.prototype.LoadImage = function() {
         this.imageHeight = image.height
         this.InitEvents()
         this.Reset()
+
+        this.pixelsData = new PixelsData(this.ctx, image, this.imageWidth, this.imageHeight, this.threshold)
     }
 
     return image

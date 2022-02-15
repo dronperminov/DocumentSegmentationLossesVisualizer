@@ -1,11 +1,15 @@
-function PIoU(info) {
+function PixelMetrics() {
+
+}
+
+PixelMetrics.prototype.PIoU = function(info) {
     if (!info.haveIntersection || info.intersectionBlackCount == 0)
         return 0
 
     return info.intersectionBlackCount / info.unionBlackCount
 }
 
-function BWIoU(info, w = 0.7, lambda = 10) {
+PixelMetrics.prototype.BWIoU = function(info, w = 0.7, lambda = 10) {
     if (!info.haveIntersection)
         return 0
 
@@ -15,7 +19,7 @@ function BWIoU(info, w = 0.7, lambda = 10) {
     return int / (union + (info.unionBlackCount - info.intersectionBlackCount) * lambda)
 }
 
-function WeightedBWIoU(info, lambda = 10) {
+PixelMetrics.prototype.WeightedBWIoU = function(info, lambda = 10) {
     if (!info.haveIntersection)
         return 0
 
@@ -26,4 +30,17 @@ function WeightedBWIoU(info, lambda = 10) {
     let union = info.unionBlackCount * unionW + info.unionWhiteCount * (1 - unionW)
 
     return int / (union + (info.unionBlackCount - info.intersectionBlackCount) * lambda)
+}
+
+PixelMetrics.prototype.Evaluate = function(info, name) {
+    if (name == 'PIoU')
+        return this.PIoU(info)
+
+    if (name == 'BWIoU')
+        return this.BWIoU(info)
+
+    if (name == 'Weighted BWIoU')
+        return this.WeightedBWIoU(info)
+
+    throw "unknown metric '" + name + "'"
 }

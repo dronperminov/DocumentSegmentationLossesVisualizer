@@ -166,24 +166,22 @@ Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
 
 Visualizer.prototype.MakePixelMetricTable = function(real, pred) {
     let coordLoss = 1 - this.loss.Evaluate(real, pred, 1, this.coordNameBox.value).loss
-    let losses = this.GetLosses(real, pred)
-    let baseMetrics = ['PIoU', 'BWIoU', 'Weighted BWIoU']
+    let info = real.GetInfo(pred, this.pixelsData)
 
     let modifications = [
-        { name: 'F', value: function(loss) { return loss } },
-        { name: `F × ${this.coordNameBox.value}`, value: function(loss) { return loss * coordLoss } },
-        { name: `(F + 1 - ${this.coordNameBox.value}) × ${this.coordNameBox.value}<br>(champion)`, value: function(loss) { return (loss + 1 - coordLoss) * coordLoss } },
+        { name: 'F', value: function(metric) { return metric } },
+        { name: `F × ${this.coordNameBox.value}`, value: function(metric) { return metric * coordLoss } },
+        { name: `(F + 1 - ${this.coordNameBox.value}) × ${this.coordNameBox.value}<br>(champion)`, value: function(metric) { return (metric + 1 - coordLoss) * coordLoss } },
     ]
 
-    let header = `<tr><th>Тип</th>${baseMetrics.map((loss) => '<th>' + loss + '</th>').join('')}</tr>`
+    let header = `<tr><th>Тип</th>${this.pixelNames.map((name) => '<th>' + name + '</th>').join('')}</tr>`
     let values = []
 
     for (let mod of modifications) {
         let row = `<tr><td>${mod.name}</td>`
 
-        for (let metric of baseMetrics) {
-            let name = metric.toLowerCase().replace(/ /gi, '_')
-            let value = mod.value(losses[name])
+        for (let metric of this.pixelNames) {
+            let value = mod.value(this.pixelMetrics.Evaluate(info, metric))
             row += `<td><span class="box" style="background: ${this.LossToColor(1 - value)}"></span> ${this.Round(value)}</td>`
         }
 
