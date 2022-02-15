@@ -107,8 +107,7 @@ Visualizer.prototype.Round = function(v) {
 }
 
 Visualizer.prototype.MakeBoxesTable = function(real, pred) {
-    let data = this.ctx.getImageData(0, 0, this.imageWidth, this.imageHeight).data
-    let info = real.GetInfo(pred, data, this.threshold)
+    let info = real.GetInfo(pred, this.pixelsData)
 
     let tableBoxes = `
         <tr><th>Bbox</th><th>Coord</th><th>Area</th><th>Black (■)</th><th>White (□)</th></tr>

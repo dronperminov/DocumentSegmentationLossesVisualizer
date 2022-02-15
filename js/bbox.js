@@ -193,36 +193,14 @@ BoundingBox.prototype.Convex = function(bbox) {
     return new BoundingBox(x1, y1, x2, y2, (this.color + bbox.color) / 2, this.iw, this.ih, true)
 }
 
-BoundingBox.prototype.CountByThreshold = function(pixels, threshold = 120, isLess = true) {
-    let count = 0
-
-    for (let x = this.x1; x < this.x2; x++) {
-        for (let y = this.y1; y < this.y2; y++) {
-            let i = (y * this.iw + x) * 4
-
-            let r = pixels[i + 0]
-            let g = pixels[i + 1]
-            let b = pixels[i + 2]
-            let brightness = (r + g + b) / 3 // stupid, i know
-
-            if (brightness < threshold && isLess)
-                count++
-            else if (brightness >= threshold && !isLess)
-                count++
-        }
-    }
-
-    return count
-}
-
-BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
+BoundingBox.prototype.GetInfo = function(bbox, pixelsData) {
     let realArea = this.GetArea()
-    let realBlackCount = this.CountByThreshold(data, threshold, true)
-    let realWhiteCount = this.CountByThreshold(data, threshold, false)
+    let realBlackCount = pixelsData.GetCount(this, true)
+    let realWhiteCount = pixelsData.GetCount(this, false)
 
     let predArea = bbox.GetArea()
-    let predBlackCount = bbox.CountByThreshold(data, threshold, true)
-    let predWhiteCount = bbox.CountByThreshold(data, threshold, false)
+    let predBlackCount = pixelsData.GetCount(bbox, true)
+    let predWhiteCount = pixelsData.GetCount(bbox, false)
 
     let intersectionArea = 0
     let intersectionBlackCount = 0
@@ -233,8 +211,8 @@ BoundingBox.prototype.GetInfo = function(bbox, data, threshold) {
 
     if (haveIntersection) {
         intersectionArea = intersection.GetArea()
-        intersectionBlackCount = intersection.CountByThreshold(data, threshold, true)
-        intersectionWhiteCount = intersection.CountByThreshold(data, threshold, false)
+        intersectionBlackCount = pixelsData.GetCount(intersection, true)
+        intersectionWhiteCount = pixelsData.GetCount(intersection, false)
     }
 
     let unionArea = realArea + predArea - intersectionArea

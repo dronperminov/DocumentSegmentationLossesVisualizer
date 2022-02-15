@@ -63,7 +63,7 @@ Visualizer.prototype.InitControls = function() {
     this.controls.addEventListener('change', () => this.ChangeImage(this.controls.value))
 
     this.threshold = +this.thresholdBox.value
-    this.thresholdBox.addEventListener('change', () => { this.threshold = +this.thresholdBox.value; })
+    this.thresholdBox.addEventListener('change', () => this.ChangeThreshold())
 
     this.optimizeBtn.addEventListener('click', () => this.Optimize())
     this.optimizeCoordBtn.addEventListener('click', () => this.Optimize(true))
@@ -85,6 +85,11 @@ Visualizer.prototype.InitEvents = function() {
 Visualizer.prototype.ChangeImage = function(src) {
     this.imageIndex = this.imagesSrc.indexOf(src)
     this.image = this.LoadImage()
+}
+
+Visualizer.prototype.ChangeThreshold = function() {
+    this.threshold = +this.thresholdBox.value
+    this.pixelsData.UpdateBlackMask(this.threshold)
 }
 
 Visualizer.prototype.Reset = function() {
@@ -157,8 +162,7 @@ Visualizer.prototype.RestoreBboxes = function(data) {
 }
 
 Visualizer.prototype.GetLosses = function(real, pred, isScale = false) {
-    let data = this.ctx.getImageData(0, 0, this.imageWidth, this.imageHeight).data
-    let info = real.GetInfo(pred, data, this.threshold)
+    let info = real.GetInfo(pred, this.pixelsData)
 
     let iou_clear = real.IoU(pred)
     let iou = real.IoU(pred, this.coordNameBox.value)
