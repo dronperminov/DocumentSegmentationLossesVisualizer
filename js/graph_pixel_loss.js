@@ -12,21 +12,16 @@ GraphPixelLoss.prototype.Evaluate = function(realBox, predBox, coordName, pixelN
         return data
 
     let info = realBox.GetInfo(predBox, this.pixelsData)
-    let scale = 0
+    let scale
 
     if (pixelName.endsWith(' (champion)')) {
-        pixelName = pixelName.replace(/ \(champion\)/g, '')
-        scale += data.loss
-    }
-
-    if (this.pixelNames.indexOf(pixelName) > -1) {
-        scale += this.pixelMetrics.Evaluate(info, pixelName)
+        scale = this.pixelMetrics.Evaluate(info, pixelName.replace(/ \(champion\)/g, '')) + data.loss // F + (1 - M) = F + L
     }
     else {
-        throw "unkmown pixel loss '" + pixelName + "'"
+        scale = this.pixelMetrics.Evaluate(info, pixelName)
     }
 
-    data.loss *= scale
+    data.loss = 1 - (1 - data.loss) * scale
     data.dx1 *= scale
     data.dy1 *= scale
     data.dx2 *= scale

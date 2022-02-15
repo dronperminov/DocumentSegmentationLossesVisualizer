@@ -165,13 +165,13 @@ Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakePixelMetricTable = function(real, pred) {
-    let coordLoss = 1 - this.loss.Evaluate(real, pred, this.coordNameBox.value).loss
+    let coordLoss = this.loss.Evaluate(real, pred, this.coordNameBox.value).loss
     let info = real.GetInfo(pred, this.pixelsData)
 
     let modifications = [
         { name: 'F', value: function(metric) { return metric } },
-        { name: `F × ${this.coordNameBox.value}`, value: function(metric) { return metric * coordLoss } },
-        { name: `(F + 1 - ${this.coordNameBox.value}) × ${this.coordNameBox.value}<br>(champion)`, value: function(metric) { return (metric + 1 - coordLoss) * coordLoss } },
+        { name: `F × (1 - L<sub>${this.coordNameBox.value}</sub>)`, value: function(metric) { return metric * (1 - coordLoss) } },
+        { name: `(F + L<sub>${this.coordNameBox.value}</sub>) × (1 - L<sub>${this.coordNameBox.value}</sub>)<br>(champion)`, value: function(metric) { return (metric + coordLoss) * (1 - coordLoss) } },
     ]
 
     let header = `<tr><th>Тип</th>${this.pixelNames.map((name) => '<th>' + name + '</th>').join('')}</tr>`
