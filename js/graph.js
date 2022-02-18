@@ -125,7 +125,7 @@ class Variable {
 class Constant {
     constructor(value, name = '') {
         this.value = value
-        this.name = name
+        this.name = name == '' ? `${value}` : name
     }
 
     Forward() {
@@ -438,7 +438,7 @@ const ONE = new Constant(1)
 const TWO = new Constant(2)
 const THREE = new Constant(3)
 const FOUR = new Constant(4)
-const EPS = new Constant(1e-8)
+const EPS = new Constant(1e-8, 'eps')
 
-const PI = new Constant(Math.PI)
-const TWO_OVER_PI = new Constant(2 / Math.PI)
+const PI = new Constant(Math.PI, 'π')
+const TWO_OVER_PI = new Constant(2 / Math.PI, '2/π')
