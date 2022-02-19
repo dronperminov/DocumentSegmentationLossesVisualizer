@@ -45,6 +45,8 @@ Visualizer.prototype.LoadImage = function() {
         this.pixelsData = new PixelsData(this.ctx, image, this.imageWidth, this.imageHeight, this.threshold)
         this.pixelMetrics = new PixelMetrics()
         this.loss = new GraphPixelLoss(this.pixelNames, this.pixelsData, this.pixelMetrics)
+
+        this.Draw()
     }
 
     return image
@@ -76,12 +78,12 @@ Visualizer.prototype.InitControls = function() {
 }
 
 Visualizer.prototype.InitEvents = function() {
-    window.addEventListener('resize', () => this.WindowResize())
-    window.addEventListener('keydown', (e) => this.KeyDown(e))
+    window.addEventListener('resize', () => { this.WindowResize(); this.Draw() })
+    window.addEventListener('keydown', (e) => { this.KeyDown(e); this.Draw() })
 
-    this.canvas.addEventListener('mousedown', (e) => this.MouseDown(e))
-    this.canvas.addEventListener('mousemove', (e) => this.MouseMove(e))
-    this.canvas.addEventListener('mouseup', (e) => this.MouseUp(e))
+    this.canvas.addEventListener('mousedown', (e) => { this.MouseDown(e); this.Draw() })
+    this.canvas.addEventListener('mousemove', (e) => { this.MouseMove(e); this.Draw() })
+    this.canvas.addEventListener('mouseup', (e) => { this.MouseUp(e); this.Draw() })
 
     this.WindowResize()
 }
@@ -94,6 +96,7 @@ Visualizer.prototype.ChangeImage = function(src) {
 Visualizer.prototype.ChangeThreshold = function() {
     this.threshold = +this.thresholdBox.value
     this.pixelsData.UpdateBlackMask(this.threshold)
+    this.Draw()
 }
 
 Visualizer.prototype.Reset = function() {
