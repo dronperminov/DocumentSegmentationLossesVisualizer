@@ -101,6 +101,7 @@ Visualizer.prototype.ChangeThreshold = function() {
 
 Visualizer.prototype.Reset = function() {
     this.activeBox = null
+    this.isOptimizationStarted = false
 
     this.isPressed = false
     this.currPoint = { x: -1, y: -1 }
@@ -218,7 +219,7 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
             this.coordNameBox.value,
             'PIoU', 'BWIoU', 'Weighted BWIoU',
             'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
-            'Pixel'
+            // 'Pixel'
         ]
 
         coordNames = names.map((v) => this.coordNameBox.value)
@@ -258,6 +259,7 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
     }
 
     this.plotBox.style.display = ''
+    this.isOptimizationStarted = true
     this.OptimizeStep(data, alpha)
 }
 
@@ -305,6 +307,7 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
 
             avg_loss += loss.loss
             avg_error += realBoxes[index].RegressionError(predBoxes[j])
+            // avg_error += 1 - this.pixelMetrics.Evaluate(realBoxes[index].GetInfo(predBoxes[j], this.pixelsData), 'Weighted BWIoU')
 
             for (let gradName of Object.keys(avg_grads))
                 avg_grads[gradName] += loss[gradName]
@@ -335,11 +338,13 @@ Visualizer.prototype.OptimizeStep = function(data, alpha, totalMaxLoss = 0, tota
     totalMaxLoss = Math.max(totalMaxLoss, maxLoss)
     totalMaxError = Math.max(totalMaxError, maxError)
 
-    this.Draw()
+    this.Draw(true)
     this.PlotLosses(data, steps, totalMaxLoss, totalMaxError, totalMaxGrad)
 
-    if (isStop)
+    if (isStop) {
+        this.isOptimizationStarted = false
         return
+    }
 
     let t2 = performance.now()
     for (let key of Object.keys(data)) {

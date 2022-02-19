@@ -150,9 +150,13 @@ Visualizer.prototype.MakeBoxesTable = function(real, pred) {
 }
 
 Visualizer.prototype.MakeCoordinateLossesTable = function(real, pred) {
-    let losses = this.coordNames.map((coordName) => this.loss.Evaluate(real, pred, coordName))
+    let names = this.coordNames.slice()
+    let losses = names.map((coordName) => this.loss.Evaluate(real, pred, coordName))
 
-    let header = `<tr><th>Тип</th>${this.coordNames.map((coordName) => '<th>L<sub>' + coordName + '</sub></th>').join('')}</tr>`
+    names.push('Pixel')
+    losses.push(this.loss.Evaluate(real, pred, 'IoU', 'Pixel'))
+
+    let header = `<tr><th>Тип</th>${names.map((name) => '<th>L<sub>' + name + '</sub></th>').join('')}</tr>`
     let direct = `<tr><td>L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(v.loss) + '"></span> ' + this.Round(v.loss) + '</td>').join('')}</tr>`
     let inverse = `<tr><td>1 - L</td>${losses.map((v) => '<td><span class="box" style="background: ' + this.LossToColor(1 - v.loss) + '"></span> ' + this.Round(1 - v.loss) + '</td>').join('')}</tr>`
     let dx1 = `<tr><td>∂L/∂x<sub>1</sub></td>${losses.map((v) => '<td>' + this.Round(v.dx1) + '</td>').join('')}</tr>`
@@ -233,7 +237,10 @@ Visualizer.prototype.LossToColor = function(loss) {
     return `hsla(${color}, 80%, 50%, 70%)`
 }
 
-Visualizer.prototype.Draw = function() {
+Visualizer.prototype.Draw = function(ignoreOptimization = false) {
+    if (this.isOptimizationStarted && !ignoreOptimization)
+        return
+
     this.Clear()
     this.DrawLoss()
 

@@ -126,10 +126,6 @@ BoundingBox.prototype.ToString = function() {
 }
 
 BoundingBox.prototype.Draw = function(ctx, isActive = false, onlyBorder = false) {
-    let bbox = this.GetNormalParams()
-    let width = Math.abs(this.x2 - this.x1)
-    let height = Math.abs(this.y2 - this.y1)
-
     ctx.fillStyle = `hsl(${this.color}, 50%, 80%, 50%)`
     ctx.strokeStyle = `hsl(${this.color}, 80%, 60%)`
     ctx.lineWidth = 2
@@ -139,7 +135,7 @@ BoundingBox.prototype.Draw = function(ctx, isActive = false, onlyBorder = false)
     }
 
     ctx.beginPath()
-    ctx.rect(bbox.x1, bbox.y1, width, height)
+    ctx.rect(this.x1, this.y1, this.x2 - this.x1, this.y2 - this.y1)
 
     if (!onlyBorder) {
         ctx.fill()
