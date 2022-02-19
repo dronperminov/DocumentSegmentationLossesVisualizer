@@ -215,6 +215,7 @@ Visualizer.prototype.Optimize = function(compareCoordinateLosses = false, alpha 
             this.coordNameBox.value,
             'PIoU', 'BWIoU', 'Weighted BWIoU',
             'PIoU (champion)', 'BWIoU (champion)', 'Weighted BWIoU (champion)',
+            'Pixel'
         ]
 
         coordNames = names.map((v) => this.coordNameBox.value)
