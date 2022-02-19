@@ -39,17 +39,22 @@ PixelsData.prototype.UpdateBlackMask = function(threshold) {
             this.mask[i][j] = this.mask[i - 1][j] + this.mask[i][j - 1] - this.mask[i - 1][j - 1] + (this.pixels[i][j] < threshold ? 1 : 0)
 }
 
-PixelsData.prototype.GetCount = function(bbox, isLess = true) {
-    let x1 = Math.max(0, bbox.x1)
-    let y1 = Math.max(0, bbox.y1)
-    let x2 = Math.min(this.width, bbox.x2)
-    let y2 = Math.min(this.height, bbox.y2)
+PixelsData.prototype.GetCountByCoords = function(x1, y1, x2, y2, isLess = true, isNormalized = false) {
+    x1 = Math.max(0, x1)
+    y1 = Math.max(0, y1)
+    x2 = Math.min(this.width, x2)
+    y2 = Math.min(this.height, y2)
 
     let k1 = this.mask[y2 - 1][x2 - 1]
     let k2 = x1 > 0 ? this.mask[y2 - 1][x1 - 1] : 0
     let k3 = y1 > 0 ? this.mask[y1 - 1][x2 - 1] : 0
     let k4 = x1 > 0 && y1 > 0 ? this.mask[y1 - 1][x1 - 1] : 0
     let count = k1 - k2 - k3 + k4
+    let norm = isNormalized ? (x2 - x1) * (y2 - y1) : 1
 
-    return isLess ? count : (x2 - x1) * (y2 - y1) - count
+    return (isLess ? count : (x2 - x1) * (y2 - y1) - count) / norm
+}
+
+PixelsData.prototype.GetCount = function(bbox, isLess = true, isNormalized = false) {
+    return this.GetCountByCoords(bbox.x1, bbox.y1, bbox.x2, bbox.y2, isLess, isNormalized)
 }
